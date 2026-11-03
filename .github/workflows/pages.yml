@@ -1,4 +1,4 @@
-name: Deploy SEAM to GitHub Pages
+name: Deploy Spetlyscroll to GitHub Pages
 
 on:
   push:

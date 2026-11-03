@@ -1,6 +1,6 @@
-# SEAM
+# Spetlyscroll
 
-SEAM is a private, browser-based studio for creating seamless social-media carousels. Photos stay on the device, projects autosave in the browser, and finished slides export in posting order.
+Spetlyscroll is a private, browser-based studio for creating seamless social-media carousels. Photos stay on the device, projects autosave in the browser, and finished slides export in posting order.
 
 ## Features
 
@@ -43,4 +43,4 @@ The app is fully static and can be hosted directly from the repository root.
 
 ## Privacy
 
-SEAM runs entirely in the browser. Images are read as local data and never sent to a server. Project autosave uses `localStorage`; very large projects may exceed the browser's storage limit but still remain usable in the active session.
+Spetlyscroll runs entirely in the browser. Images are read as local data and never sent to a server. Project autosave uses `localStorage`; very large projects may exceed the browser's storage limit but still remain usable in the active session.
