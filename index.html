@@ -17,10 +17,14 @@
             <span>SPETLYSCROLL</span>
           </div>
           <span class="home-topline">Your private design studio</span>
-          <button class="button primary home-new-button" id="newGraphicButton">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            New graphic
-          </button>
+          <div class="home-actions">
+            <button class="button secondary" id="importProjectButton">Import project</button>
+            <button class="button primary home-new-button" id="newGraphicButton">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              New graphic
+            </button>
+            <input id="projectImportInput" type="file" accept=".spetlyscroll,.json,application/json" hidden />
+          </div>
         </header>
         <main class="home-content">
           <section class="home-hero">
@@ -306,6 +310,16 @@
           </div>
           <div id="propertiesPanel" class="properties-panel hidden">
             <div class="properties-heading"><div><span class="eyebrow">Selected layer</span><h2 id="layerType">Photo</h2></div><div class="property-heading-actions"><button id="deleteLayer" class="icon-button danger" aria-label="Delete layer"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></svg></button><button id="closeProperties" class="icon-button property-close" aria-label="Close properties">×</button></div></div>
+            <div class="geometry-properties">
+              <div class="field-label geometry-title">Position &amp; size <span>px / °</span></div>
+              <div class="geometry-grid">
+                <label>X<input id="geometryX" type="number" step="1" /></label>
+                <label>Y<input id="geometryY" type="number" step="1" /></label>
+                <label>W<input id="geometryW" type="number" min="1" step="1" /></label>
+                <label>H<input id="geometryH" type="number" min="1" step="1" /></label>
+                <label class="geometry-rotation">Rotation<input id="geometryRotation" type="number" step="1" /></label>
+              </div>
+            </div>
             <div id="imageProperties">
               <label class="field-label">Opacity <span id="opacityValue">100%</span><input id="opacityRange" type="range" min="10" max="100" value="100" /></label>
               <label class="field-label">Corner radius <span id="radiusValue">0</span><input id="radiusRange" type="range" min="0" max="120" value="0" /></label>
@@ -370,11 +384,13 @@
       <div class="export-summary"><div class="export-stack" id="exportStack"></div><div><b id="exportSummaryTitle">3 high-quality slides</b><p>Images are rendered locally and downloaded in posting order.</p></div></div>
       <label class="field-label">File type<select id="exportFormat"><option value="png">PNG — best quality</option><option value="jpeg">JPEG — smaller files</option></select></label>
       <label class="field-label">Quality <span id="exportQualityValue">92%</span><input id="exportQuality" type="range" min="60" max="100" value="92" /></label>
+      <label class="zip-option"><input id="exportAsZip" type="checkbox" checked /><span><b>Download as one ZIP</b><small>All slides stay together and keep their posting order.</small></span></label>
       <button class="button primary export-confirm" id="confirmExport"><span>Download all slides</span><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg></button>
-      <p class="export-note">Your browser may ask permission for multiple downloads.</p>
+      <p class="export-note">Everything is rendered locally in your browser.</p>
     </dialog>
 
     <div class="toast" id="toast" role="status"></div>
+    <script src="assets/vendor/jszip.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

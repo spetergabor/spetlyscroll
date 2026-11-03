@@ -1,6 +1,6 @@
 {
   "name": "spetlyscroll",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A private desktop carousel studio for seamless social posts.",
   "main": "electron/main.cjs",
   "author": "spetergabor",
@@ -36,11 +36,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["arm64"]
+          "arch": [
+            "arm64"
+          ]
         }
       ]
     },
@@ -49,5 +53,8 @@
       "sign": false
     },
     "artifactName": "Spetlyscroll-${version}-${arch}.${ext}"
+  },
+  "dependencies": {
+    "jszip": "^3.10.2"
   }
 }

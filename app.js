@@ -3,6 +3,10 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
   const ARTBOARD_BASE_HEIGHT = 675;
+  const DB_NAME = "spetlyscroll-db";
+  const DB_VERSION = 1;
+  const PROJECT_STORE = "projects";
+  const SNAP_THRESHOLD = 8;
   const RATIO_SIZES = {
     "4:5": { w: 540, h: 675, exportW: 1080, exportH: 1350 },
     "1:1": { w: 675, h: 675, exportW: 1080, exportH: 1080 },
@@ -36,6 +40,7 @@
   let saveTimer = null;
   let toastTimer = null;
   let persistEnabled = true;
+  let databasePromise = null;
 
   const artboard = $("#artboard");
   const rightPanel = $(".right-panel");
@@ -44,8 +49,8 @@
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  function snapshot() {
-    return JSON.stringify({
+  function projectData() {
+    return {
       projectId: state.projectId,
       updatedAt: state.updatedAt,
       title: state.title,
@@ -53,11 +58,17 @@
       ratio: state.ratio,
       background: state.background,
       slideBackgrounds: state.slideBackgrounds,
+      backgroundStart: state.backgroundStart,
+      backgroundSpan: state.backgroundSpan,
       layers: state.layers,
       media: state.media,
       activeTemplate: state.activeTemplate,
       templatePhotoCount: state.templatePhotoCount,
-    });
+    };
+  }
+
+  function snapshot() {
+    return JSON.stringify(projectData());
   }
 
   function pushHistory() {
@@ -106,48 +117,93 @@
     } catch { return []; }
   }
 
-  function saveProjectNow() {
+  function openDatabase() {
+    if (databasePromise) return databasePromise;
+    databasePromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(PROJECT_STORE)) db.createObjectStore(PROJECT_STORE, { keyPath:"projectId" });
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return databasePromise;
+  }
+
+  async function idbRequest(mode, action) {
+    const db = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(PROJECT_STORE, mode);
+      const request = action(transaction.objectStore(PROJECT_STORE));
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }
+
+  const getProject = (id) => id ? idbRequest("readonly", (store) => store.get(id)) : Promise.resolve(null);
+  const getAllProjects = () => idbRequest("readonly", (store) => store.getAll());
+  const putProject = (project) => idbRequest("readwrite", (store) => store.put(project));
+  const removeProject = (id) => idbRequest("readwrite", (store) => store.delete(id));
+
+  function updateProjectIndex(project) {
+    const metadata = {
+      id:project.projectId, title:project.title || "Untitled graphic", updatedAt:project.updatedAt,
+      slides:project.slides, ratio:project.ratio, background:project.background,
+    };
+    const index = projectIndex().filter((entry) => entry.id !== project.projectId);
+    index.unshift(metadata);
+    localStorage.setItem("seam-project-index", JSON.stringify(index));
+  }
+
+  async function saveProjectNow() {
     if (!persistEnabled || !state.projectId) return;
     clearTimeout(saveTimer);
     state.updatedAt = Date.now();
     try {
-      const serialized = snapshot();
-      localStorage.setItem(`seam-project:${state.projectId}`, serialized);
+      const project = structuredClone(projectData());
+      await putProject(project);
       localStorage.setItem("seam-current-project", state.projectId);
-      const metadata = {
-        id:state.projectId, title:state.title || "Untitled graphic", updatedAt:state.updatedAt,
-        slides:state.slides, ratio:state.ratio, background:state.background,
-      };
-      const index = projectIndex().filter((project) => project.id !== state.projectId);
-      index.unshift(metadata);
-      localStorage.setItem("seam-project-index", JSON.stringify(index));
+      updateProjectIndex(project);
+      localStorage.removeItem(`seam-project:${state.projectId}`);
       localStorage.removeItem("seam-project");
       $("#saveStatus").textContent = "Saved locally";
-    } catch {
-      persistEnabled = false;
-      $("#saveStatus").textContent = "Project too large to autosave";
+    } catch (error) {
+      console.error("Project save failed", error);
+      $("#saveStatus").textContent = "Save failed — retrying on next change";
     }
   }
 
-  function loadSaved() {
+  async function loadSaved() {
     let currentId = localStorage.getItem("seam-current-project");
-    let saved = currentId ? localStorage.getItem(`seam-project:${currentId}`) : null;
-    if (!saved) saved = localStorage.getItem("seam-project");
-    if (!saved) {
+    let data = await getProject(currentId);
+    let legacyKey = currentId ? `seam-project:${currentId}` : "seam-project";
+    let legacy = localStorage.getItem(legacyKey) || localStorage.getItem("seam-project");
+    if (!data && !legacy) {
       currentId = projectIndex()[0]?.id || null;
-      if (currentId) saved = localStorage.getItem(`seam-project:${currentId}`);
+      data = await getProject(currentId);
+      legacyKey = `seam-project:${currentId}`;
+      legacy = currentId ? localStorage.getItem(legacyKey) : null;
     }
-    if (!saved) return false;
+    if (!data && !legacy) return false;
     try {
-      const data = JSON.parse(saved);
+      if (!data) data = JSON.parse(legacy);
       if (data && Array.isArray(data.layers)) {
         Object.assign(state, data);
         state.projectId ||= currentId || uid();
         state.updatedAt ||= Date.now();
         if (!Array.isArray(state.slideBackgrounds)) state.slideBackgrounds = [];
+        if (!Array.isArray(state.media)) state.media = [];
+        if (legacy) {
+          await putProject(structuredClone(projectData()));
+          updateProjectIndex(projectData());
+          localStorage.removeItem(legacyKey);
+          localStorage.removeItem("seam-project");
+        }
         return true;
       }
-    } catch {}
+    } catch (error) { console.error("Project load failed", error); }
     return false;
   }
 
@@ -367,33 +423,113 @@
     return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",year:"numeric"}).format(new Date(timestamp));
   }
 
-  function renderProjectHome() {
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function safeFilename(value, fallback = "spetlyscroll-project") {
+    return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || fallback;
+  }
+
+  async function exportProjectBackup(projectId = state.projectId) {
+    if (projectId === state.projectId) await saveProjectNow();
+    const project = await getProject(projectId);
+    if (!project) return showToast("Project backup could not be created");
+    const payload = { format:"spetlyscroll-project", version:1, exportedAt:Date.now(), project };
+    downloadBlob(new Blob([JSON.stringify(payload)], {type:"application/json"}), `${safeFilename(project.title)}.spetlyscroll`);
+    showToast("Project backup downloaded");
+  }
+
+  async function importProjectBackup(file) {
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      const imported = payload?.project || payload;
+      if (!imported || !Array.isArray(imported.layers) || !Array.isArray(imported.media)) throw new Error("Invalid project");
+      const project = structuredClone(imported);
+      project.projectId = uid();
+      project.title = `${project.title || "Imported graphic"} — imported`;
+      project.updatedAt = Date.now();
+      await putProject(project);
+      updateProjectIndex(project);
+      await renderProjectHome();
+      showToast("Project imported");
+    } catch (error) {
+      console.error(error);
+      showToast("This is not a valid Spetlyscroll project backup");
+    } finally {
+      $("#projectImportInput").value = "";
+    }
+  }
+
+  async function duplicateProject(projectId) {
+    const source = await getProject(projectId);
+    if (!source) return;
+    const copy = structuredClone(source);
+    copy.projectId = uid();
+    copy.title = `${source.title || "Untitled graphic"} — copy`;
+    copy.updatedAt = Date.now();
+    await putProject(copy);
+    updateProjectIndex(copy);
+    await renderProjectHome();
+    showToast("Project duplicated");
+  }
+
+  async function deleteProjectFromHome(projectId) {
+    const project = await getProject(projectId);
+    if (!project || !confirm(`Delete “${project.title || "Untitled graphic"}”? This cannot be undone.`)) return;
+    await removeProject(projectId);
+    localStorage.removeItem(`seam-project:${projectId}`);
+    localStorage.setItem("seam-project-index", JSON.stringify(projectIndex().filter((entry) => entry.id !== projectId)));
+    if (localStorage.getItem("seam-current-project") === projectId) localStorage.removeItem("seam-current-project");
+    await renderProjectHome();
+    showToast("Project deleted");
+  }
+
+  async function renderProjectHome() {
     const grid = $("#projectGrid");
-    const projects = projectIndex().map((metadata) => {
-      try {
-        const saved = localStorage.getItem(`seam-project:${metadata.id}`);
-        return saved ? {...metadata, data:JSON.parse(saved)} : null;
-      } catch { return null; }
-    }).filter(Boolean).sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    const projects = (await getAllProjects()).sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     $("#projectCount").textContent = `${projects.length} ${projects.length === 1 ? "project" : "projects"}`;
     if (!projects.length) {
       grid.innerHTML = '<div class="project-empty"><div><b>No graphics yet</b><span>Create your first design with the button above.</span></div></div>';
       return;
     }
     grid.innerHTML = projects.map((project) => `
-      <button class="project-card" data-project-id="${project.id}" aria-label="Open ${escapeHtml(project.title || "Untitled graphic")}">
-        <span class="project-card-preview">${projectPreviewMarkup(project.data)}</span>
-        <span class="project-card-meta">
-          <span><b>${escapeHtml(project.title || "Untitled graphic")}</b><small>${project.slides} ${project.slides === 1 ? "slide" : "slides"} · ${project.ratio} · ${formatProjectDate(project.updatedAt)}</small></span>
-          <span class="project-card-arrow"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
-        </span>
-      </button>`).join("");
-    $$(".project-card", grid).forEach((card) => card.addEventListener("click", () => openProject(card.dataset.projectId)));
+      <article class="project-card" data-project-id="${project.projectId}">
+        <button class="project-open" aria-label="Open ${escapeHtml(project.title || "Untitled graphic")}">
+          <span class="project-card-preview">${projectPreviewMarkup(project)}</span>
+          <span class="project-card-meta">
+            <span><b>${escapeHtml(project.title || "Untitled graphic")}</b><small>${project.slides} ${project.slides === 1 ? "slide" : "slides"} · ${project.ratio} · ${formatProjectDate(project.updatedAt)}</small></span>
+            <span class="project-card-arrow"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
+          </span>
+        </button>
+        <div class="project-card-actions">
+          <button data-project-action="duplicate">Duplicate</button>
+          <button data-project-action="backup">Backup</button>
+          <button class="danger-text" data-project-action="delete">Delete</button>
+        </div>
+      </article>`).join("");
+    $$(".project-card", grid).forEach((card) => {
+      const id = card.dataset.projectId;
+      $(".project-open", card).addEventListener("click", () => openProject(id));
+      $$("[data-project-action]", card).forEach((button) => button.addEventListener("click", () => {
+        if (button.dataset.projectAction === "duplicate") duplicateProject(id);
+        if (button.dataset.projectAction === "backup") exportProjectBackup(id);
+        if (button.dataset.projectAction === "delete") deleteProjectFromHome(id);
+      }));
+    });
   }
 
-  function showHome() {
-    if (state.projectId) saveProjectNow();
-    renderProjectHome();
+  async function showHome() {
+    if (state.projectId) await saveProjectNow();
+    await renderProjectHome();
     $("#homeScreen").classList.remove("hidden");
     [$(".topbar"), $(".workspace")].forEach((element) => { element.inert = true; element.setAttribute("aria-hidden", "true"); });
   }
@@ -404,21 +540,21 @@
     setTimeout(fitCanvas, 60);
   }
 
-  function openProject(projectId) {
+  async function openProject(projectId) {
     try {
-      const data = JSON.parse(localStorage.getItem(`seam-project:${projectId}`));
+      const data = await getProject(projectId);
       if (!data) return;
       Object.assign(state, data, {
         projectId:data.projectId || projectId,
         updatedAt:data.updatedAt || Date.now(),
         slideBackgrounds:Array.isArray(data.slideBackgrounds) ? data.slideBackgrounds : [],
         selectedId:null, history:[], future:[], previewIndex:0, cropModeId:null, frameDrawMode:false,
-        backgroundStart:0, backgroundSpan:"all",
+        backgroundStart:data.backgroundStart || 0, backgroundSpan:data.backgroundSpan || "all",
       });
       localStorage.setItem("seam-current-project", state.projectId);
       syncAll();
       showEditor();
-    } catch { showToast("This project could not be opened"); }
+    } catch (error) { console.error(error); showToast("This project could not be opened"); }
   }
 
   function startNewProject() {
@@ -522,6 +658,11 @@
     $("#layerType").textContent = layer.type === "image" ? "Photo" : "Text";
     $("#imageProperties").classList.toggle("hidden", layer.type !== "image");
     $("#textProperties").classList.toggle("hidden", layer.type !== "text");
+    $("#geometryX").value = Math.round(layer.x * 10) / 10;
+    $("#geometryY").value = Math.round(layer.y * 10) / 10;
+    $("#geometryW").value = Math.round(layer.w * 10) / 10;
+    $("#geometryH").value = Math.round(layer.h * 10) / 10;
+    $("#geometryRotation").value = Math.round((layer.rotation || 0) * 10) / 10;
     $("#opacityRange").value = Math.round((layer.opacity ?? 1) * 100);
     $("#opacityValue").textContent = `${$("#opacityRange").value}%`;
     if (layer.type === "image") {
@@ -570,6 +711,8 @@
     grid.innerHTML = "";
     $("#mediaDragHint").classList.toggle("visible", state.media.length > 0);
     state.media.forEach((item) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "media-item";
       const button = document.createElement("button");
       button.className = "media-thumb";
       button.draggable = true;
@@ -588,7 +731,21 @@
         button.classList.remove("dragging");
         artboard.classList.remove("media-drop-target");
       });
-      grid.appendChild(button);
+      const remove = document.createElement("button");
+      remove.className = "media-delete";
+      remove.type = "button";
+      remove.title = "Remove from Media";
+      remove.setAttribute("aria-label", "Remove photo from Media");
+      remove.textContent = "×";
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        state.media = state.media.filter((media) => media.id !== item.id);
+        renderMedia();
+        scheduleSave();
+        showToast("Photo removed from Media · canvas copies stay in place");
+      });
+      wrapper.append(button, remove);
+      grid.appendChild(wrapper);
     });
   }
 
@@ -1071,6 +1228,64 @@
     window.addEventListener("pointerup", pointerEnd, { once:true });
   }
 
+  function clearSnapGuides() {
+    $$(".snap-guide", artboard).forEach((guide) => guide.remove());
+  }
+
+  function showSnapGuides(vertical = [], horizontal = []) {
+    clearSnapGuides();
+    [...new Set(vertical)].forEach((x) => {
+      const guide = document.createElement("i");
+      guide.className = "snap-guide vertical";
+      guide.style.left = `${x}px`;
+      artboard.appendChild(guide);
+    });
+    [...new Set(horizontal)].forEach((y) => {
+      const guide = document.createElement("i");
+      guide.className = "snap-guide horizontal";
+      guide.style.top = `${y}px`;
+      artboard.appendChild(guide);
+    });
+  }
+
+  function snapTargets(excludeId) {
+    const { w, h } = ratioInfo();
+    const x = [0, w * state.slides, w * state.slides / 2];
+    for (let slide = 0; slide <= state.slides; slide++) {
+      x.push(slide * w);
+      if (slide < state.slides) x.push(slide * w + w / 2);
+    }
+    const y = [0, h / 2, h];
+    state.layers.filter((layer) => layer.id !== excludeId && !layer.hidden).forEach((layer) => {
+      x.push(layer.x, layer.x + layer.w / 2, layer.x + layer.w);
+      y.push(layer.y, layer.y + layer.h / 2, layer.y + layer.h);
+    });
+    return { x, y };
+  }
+
+  function closestSnap(anchors, targets) {
+    let match = null;
+    anchors.forEach((anchor) => targets.forEach((target) => {
+      const distance = Math.abs(target - anchor.value);
+      if (distance <= SNAP_THRESHOLD && (!match || distance < match.distance)) match = { distance, delta:target - anchor.value, guide:target };
+    }));
+    return match;
+  }
+
+  function snapLayerPosition(layer, x, y) {
+    const targets = snapTargets(layer.id);
+    const xMatch = closestSnap([
+      {value:x}, {value:x + layer.w / 2}, {value:x + layer.w},
+    ], targets.x);
+    const yMatch = closestSnap([
+      {value:y}, {value:y + layer.h / 2}, {value:y + layer.h},
+    ], targets.y);
+    return {
+      x:x + (xMatch?.delta || 0), y:y + (yMatch?.delta || 0),
+      vertical:xMatch ? [xMatch.guide] : [], horizontal:yMatch ? [yMatch.guide] : [],
+    };
+  }
+
   function pointerStart(event) {
     if (state.frameDrawMode) { startFrameDraw(event); return; }
     const layerElement = event.target.closest(".canvas-layer");
@@ -1123,12 +1338,20 @@
         image.style.transformOrigin = `${layer.focusX}% ${layer.focusY}%`;
       }
     } else if (drag.mode === "move") {
-      layer.x = drag.x + dx;
-      layer.y = drag.y + dy;
+      const snapped = snapLayerPosition(layer, drag.x + dx, drag.y + dy);
+      layer.x = snapped.x;
+      layer.y = snapped.y;
+      showSnapGuides(snapped.vertical, snapped.horizontal);
     } else {
       let newW = Math.max(45, drag.w + dx);
       let newH = Math.max(35, drag.h + dy);
       if (event.shiftKey || (layer.type === "image" && !layer.userFrame)) newH = newW / drag.aspect;
+      const targets = snapTargets(layer.id);
+      const rightMatch = closestSnap([{value:layer.x + newW}], targets.x);
+      const bottomMatch = closestSnap([{value:layer.y + newH}], targets.y);
+      if (rightMatch) newW = Math.max(45, newW + rightMatch.delta);
+      if (bottomMatch && !(event.shiftKey || (layer.type === "image" && !layer.userFrame))) newH = Math.max(35, newH + bottomMatch.delta);
+      showSnapGuides(rightMatch ? [rightMatch.guide] : [], bottomMatch ? [bottomMatch.guide] : []);
       layer.w = newW;
       layer.h = newH;
     }
@@ -1137,6 +1360,7 @@
   }
 
   function pointerEnd() {
+    clearSnapGuides();
     if (drag?.mode === "draw-frame") {
       const drawing = drag;
       drawing.draft?.remove();
@@ -1286,6 +1510,8 @@
   function openExport() {
     $("#exportSummaryTitle").textContent = `${state.slides} high-quality ${state.slides === 1 ? "slide" : "slides"}`;
     $("#exportStack").innerHTML = Array.from({length:Math.min(state.slides,4)}, (_,i) => `<i style="--rotate:${(i-(state.slides-1)/2)*5}deg"></i>`).join("");
+    $("#exportAsZip").closest(".zip-option").classList.toggle("hidden", state.slides === 1);
+    $("#confirmExport span").textContent = state.slides === 1 ? "Download slide" : "Download all slides";
     $("#exportDialog").showModal();
   }
 
@@ -1294,26 +1520,26 @@
     const original = button.innerHTML;
     const format = $("#exportFormat").value;
     const quality = Number($("#exportQuality").value) / 100;
+    const zipEnabled = state.slides > 1 && $("#exportAsZip").checked;
+    const zip = zipEnabled ? new JSZip() : null;
+    const safeTitle = safeFilename(state.title, "carousel");
     button.disabled = true;
     for (let i = 0; i < state.slides; i++) {
       button.querySelector("span").textContent = `Rendering ${i+1} of ${state.slides}…`;
       const canvas = await renderSlide(i);
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, `image/${format}`, quality));
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      const safeTitle = state.title.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || "carousel";
-      anchor.href = url;
-      anchor.download = `${safeTitle}-${String(i+1).padStart(2,"0")}.${format === "jpeg" ? "jpg" : "png"}`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      await new Promise((resolve) => setTimeout(resolve, 180));
+      const filename = `${safeTitle}-${String(i+1).padStart(2,"0")}.${format === "jpeg" ? "jpg" : "png"}`;
+      if (zip) zip.file(filename, blob);
+      else downloadBlob(blob, filename);
+    }
+    if (zip) {
+      button.querySelector("span").textContent = "Packing ZIP…";
+      downloadBlob(await zip.generateAsync({type:"blob", compression:"DEFLATE", compressionOptions:{level:6}}), `${safeTitle}.zip`);
     }
     button.innerHTML = original;
     button.disabled = false;
     $("#exportDialog").close();
-    showToast(`${state.slides} ${state.slides === 1 ? "slide" : "slides"} exported in posting order`);
+    showToast(zip ? `${state.slides} slides exported as one ZIP` : `${state.slides} ${state.slides === 1 ? "slide" : "slides"} exported in posting order`);
   }
 
   function showToast(message) {
@@ -1332,6 +1558,8 @@
   }
 
   function bindEvents() {
+    $("#importProjectButton").addEventListener("click", () => $("#projectImportInput").click());
+    $("#projectImportInput").addEventListener("change", (event) => importProjectBackup(event.target.files[0]));
     $$(".rail-button").forEach((button) => button.addEventListener("click", () => {
       const same = button.classList.contains("active");
       const wasOpen = $(".left-panel").classList.contains("open");
@@ -1449,6 +1677,17 @@
     });
     $("#deleteLayer").addEventListener("click", deleteSelected);
     $("#closeProperties").addEventListener("click", () => { state.selectedId=null; state.cropModeId=null; renderLayers(); });
+    const geometryBindings = {
+      geometryX:["x", -100000], geometryY:["y", -100000], geometryW:["w", 1], geometryH:["h", 1], geometryRotation:["rotation", -3600],
+    };
+    Object.entries(geometryBindings).forEach(([id, [property, minimum]]) => {
+      $(`#${id}`).addEventListener("change", (event) => {
+        const value = Number(event.target.value);
+        if (!Number.isFinite(value)) return syncProperties();
+        mutateSelected((layer) => { layer[property] = Math.max(minimum, value); }, true);
+        syncProperties();
+      });
+    });
     $("#opacityRange").addEventListener("input", (event) => mutateSelected((layer) => layer.opacity=Number(event.target.value)/100));
     $("#radiusRange").addEventListener("input", (event) => mutateSelected((layer) => layer.radius=Number(event.target.value)));
     $("#imageZoomRange").addEventListener("input", (event) => mutateSelected((layer) => layer.imageScale=Number(event.target.value)/100));
@@ -1517,11 +1756,11 @@
     window.addEventListener("resize", () => setTimeout(fitCanvas, 80));
   }
 
-  function init() {
-    loadSaved();
+  async function init() {
+    try { await loadSaved(); } catch (error) { console.error("Local database could not be opened", error); }
     bindEvents();
     syncAll();
-    showHome();
+    await showHome();
   }
 
   init();
