@@ -4,8 +4,9 @@
 
   const ARTBOARD_BASE_HEIGHT = 675;
   const DB_NAME = "spetlyscroll-db";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const PROJECT_STORE = "projects";
+  const MEDIA_STORE = "media";
   const SNAP_THRESHOLD = 8;
   const RATIO_SIZES = {
     "4:5": { w: 540, h: 675, exportW: 1080, exportH: 1350 },
@@ -33,6 +34,7 @@
     activeTemplate: null,
     templatePhotoCount: 3,
     templateDefaultsVersion: 2,
+    mediaStorageVersion: 1,
     cropModeId: null,
     frameDrawMode: false,
   };
@@ -42,6 +44,8 @@
   let toastTimer = null;
   let persistEnabled = true;
   let databasePromise = null;
+  let mediaDirty = false;
+  let saveChain = Promise.resolve();
 
   const artboard = $("#artboard");
   const rightPanel = $(".right-panel");
@@ -66,11 +70,18 @@
       activeTemplate: state.activeTemplate,
       templatePhotoCount: state.templatePhotoCount,
       templateDefaultsVersion: state.templateDefaultsVersion,
+      mediaStorageVersion: state.mediaStorageVersion,
     };
   }
 
   function snapshot() {
-    return JSON.stringify(projectData());
+    const data = projectData();
+    return {
+      ...data,
+      slideBackgrounds:[...data.slideBackgrounds],
+      layers:data.layers.map((layer) => ({...layer})),
+      media:data.media.map((item) => ({...item})),
+    };
   }
 
   function pushHistory() {
@@ -80,9 +91,14 @@
     updateHistoryButtons();
   }
 
-  function restore(serialized) {
-    const data = JSON.parse(serialized);
-    Object.assign(state, data, { selectedId: null });
+  function restore(data) {
+    Object.assign(state, data, {
+      slideBackgrounds:[...(data.slideBackgrounds || [])],
+      layers:(data.layers || []).map((layer) => ({...layer})),
+      media:(data.media || []).map((item) => ({...item})),
+      selectedId:null,
+    });
+    mediaDirty = true;
     syncAll();
     scheduleSave();
   }
@@ -144,6 +160,10 @@
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(PROJECT_STORE)) db.createObjectStore(PROJECT_STORE, { keyPath:"projectId" });
+        if (!db.objectStoreNames.contains(MEDIA_STORE)) {
+          const store = db.createObjectStore(MEDIA_STORE, { keyPath:["projectId","id"] });
+          store.createIndex("projectId", "projectId", { unique:false });
+        }
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
@@ -151,21 +171,80 @@
     return databasePromise;
   }
 
-  async function idbRequest(mode, action) {
+  async function idbRequest(storeName, mode, action) {
     const db = await openDatabase();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(PROJECT_STORE, mode);
-      const request = action(transaction.objectStore(PROJECT_STORE));
+      const transaction = db.transaction(storeName, mode);
+      const request = action(transaction.objectStore(storeName));
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
       transaction.onerror = () => reject(transaction.error);
     });
   }
 
-  const getProject = (id) => id ? idbRequest("readonly", (store) => store.get(id)) : Promise.resolve(null);
-  const getAllProjects = () => idbRequest("readonly", (store) => store.getAll());
-  const putProject = (project) => idbRequest("readwrite", (store) => store.put(project));
-  const removeProject = (id) => idbRequest("readwrite", (store) => store.delete(id));
+  const getProjectRecord = (id) => id ? idbRequest(PROJECT_STORE, "readonly", (store) => store.get(id)) : Promise.resolve(null);
+  const getProjectMedia = (id) => id ? idbRequest(MEDIA_STORE, "readonly", (store) => store.index("projectId").getAll(id)) : Promise.resolve([]);
+
+  function hydrateProject(record, storedMedia = []) {
+    if (!record) return null;
+    const media = (storedMedia.length ? storedMedia : (record.media || [])).map(({projectId, ...item}) => item);
+    const mediaById = new Map(media.map((item) => [item.id, item]));
+    const mediaBySrc = new Map(media.map((item) => [item.src, item]));
+    const layers = (record.layers || []).map((layer) => {
+      const item = layer.mediaId ? mediaById.get(layer.mediaId) : mediaBySrc.get(layer.src);
+      return item ? {...layer, mediaId:item.id, src:item.src} : {...layer};
+    });
+    return {...record, layers, media};
+  }
+
+  async function getProject(id) {
+    const record = await getProjectRecord(id);
+    return hydrateProject(record, await getProjectMedia(id));
+  }
+
+  async function getAllProjects() {
+    const records = await idbRequest(PROJECT_STORE, "readonly", (store) => store.getAll());
+    return Promise.all(records.map(async (record) => hydrateProject(record, await getProjectMedia(record.projectId))));
+  }
+
+  function prepareProjectRecord(project) {
+    const mediaBySrc = new Map((project.media || []).map((item) => [item.src, item.id]));
+    const mediaIds = new Set((project.media || []).map((item) => item.id));
+    const layers = (project.layers || []).map((layer) => {
+      const mediaId = mediaIds.has(layer.mediaId) ? layer.mediaId : mediaBySrc.get(layer.src);
+      if (!mediaId) return {...layer};
+      const copy = {...layer, mediaId};
+      delete copy.src;
+      return copy;
+    });
+    const record = {...project, layers, mediaStorageVersion:1};
+    delete record.media;
+    return record;
+  }
+
+  async function replaceProjectMedia(projectId, media) {
+    const existingKeys = await idbRequest(MEDIA_STORE, "readonly", (store) => store.index("projectId").getAllKeys(projectId));
+    const db = await openDatabase();
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(MEDIA_STORE, "readwrite");
+      const store = transaction.objectStore(MEDIA_STORE);
+      existingKeys.forEach((key) => store.delete(key));
+      (media || []).forEach((item) => store.put({projectId, ...item}));
+      transaction.oncomplete = resolve;
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  }
+
+  async function putProject(project, {writeMedia = true} = {}) {
+    await idbRequest(PROJECT_STORE, "readwrite", (store) => store.put(prepareProjectRecord(project)));
+    if (writeMedia) await replaceProjectMedia(project.projectId, project.media || []);
+  }
+
+  async function removeProject(id) {
+    await idbRequest(PROJECT_STORE, "readwrite", (store) => store.delete(id));
+    await replaceProjectMedia(id, []);
+  }
 
   function updateProjectIndex(project) {
     const metadata = {
@@ -177,22 +256,27 @@
     localStorage.setItem("seam-project-index", JSON.stringify(index));
   }
 
-  async function saveProjectNow() {
-    if (!persistEnabled || !state.projectId) return;
+  function saveProjectNow() {
+    if (!persistEnabled || !state.projectId) return Promise.resolve();
     clearTimeout(saveTimer);
     state.updatedAt = Date.now();
-    try {
-      const project = structuredClone(projectData());
-      await putProject(project);
-      localStorage.setItem("seam-current-project", state.projectId);
+    const project = snapshot();
+    const writeMedia = mediaDirty || !project.mediaStorageVersion;
+    mediaDirty = false;
+    project.mediaStorageVersion = 1;
+    saveChain = saveChain.then(async () => {
+      await putProject(project, {writeMedia});
+      localStorage.setItem("seam-current-project", project.projectId);
       updateProjectIndex(project);
-      localStorage.removeItem(`seam-project:${state.projectId}`);
+      localStorage.removeItem(`seam-project:${project.projectId}`);
       localStorage.removeItem("seam-project");
-      $("#saveStatus").textContent = "Saved locally";
-    } catch (error) {
+      if (state.projectId === project.projectId) $("#saveStatus").textContent = "Saved locally";
+    }).catch((error) => {
+      if (writeMedia) mediaDirty = true;
       console.error("Project save failed", error);
       $("#saveStatus").textContent = "Save failed — retrying on next change";
-    }
+    });
+    return saveChain;
   }
 
   async function loadSaved() {
@@ -215,9 +299,12 @@
         state.updatedAt ||= Date.now();
         if (!Array.isArray(state.slideBackgrounds)) state.slideBackgrounds = [];
         if (!Array.isArray(state.media)) state.media = [];
+        mediaDirty = !data.mediaStorageVersion;
+        state.mediaStorageVersion = 1;
         migrateTemplatePhotoDefaults();
         if (legacy) {
-          await putProject(structuredClone(projectData()));
+          await putProject(projectData());
+          mediaDirty = false;
           updateProjectIndex(projectData());
           localStorage.removeItem(legacyKey);
           localStorage.removeItem("seam-project");
@@ -572,6 +659,8 @@
         selectedId:null, history:[], future:[], previewIndex:0, cropModeId:null, frameDrawMode:false,
         backgroundStart:data.backgroundStart || 0, backgroundSpan:data.backgroundSpan || "all",
       });
+      mediaDirty = !data.mediaStorageVersion;
+      state.mediaStorageVersion = 1;
       const migrated = migrateTemplatePhotoDefaults();
       localStorage.setItem("seam-current-project", state.projectId);
       syncAll();
@@ -590,6 +679,7 @@
       templateDefaultsVersion:2,
     });
     persistEnabled = true;
+    mediaDirty = true;
     $$("[data-template-group]").forEach((button) => button.classList.toggle("active", button.dataset.templateGroup === "single"));
     $$(".template-card").forEach((card) => {
       card.classList.toggle("template-hidden", card.dataset.group !== "single");
@@ -601,7 +691,7 @@
     saveProjectNow();
   }
 
-  function addImage(src, naturalW = 1200, naturalH = 900, placement = null) {
+  function addImage(src, naturalW = 1200, naturalH = 900, placement = null, mediaId = null) {
     pushHistory();
     const { w, h } = ratioInfo();
     const aspect = naturalW / naturalH;
@@ -612,7 +702,7 @@
     const x = placement ? Math.max(0, Math.min(totalWidth - width, placement.x - width / 2)) : Math.max(24, (totalWidth - width) / 2);
     const y = placement ? Math.max(0, Math.min(h - height, placement.y - height / 2)) : (h - height) / 2;
     const layer = {
-      id: uid(), type: "image", src,
+      id: uid(), type: "image", src, mediaId,
       x, y,
       w: width, h: height, z: nextZ(), opacity: 1, radius: 0, fit: "cover", rotation: 0,
       imageScale:1, focusX:50, focusY:50, hidden:false, locked:false,
@@ -659,7 +749,7 @@
     if (!layer) return;
     if (layer.locked) { showToast("Unlock this layer before duplicating it"); return; }
     pushHistory();
-    const duplicate = JSON.parse(JSON.stringify(layer));
+    const duplicate = {...layer};
     duplicate.id = uid();
     duplicate.x += 20;
     duplicate.y += 20;
@@ -713,13 +803,45 @@
     }
   }
 
-  function mutateSelected(mutator, history = false) {
+  function updateLayerElement(layer) {
+    const element = $(`.canvas-layer[data-id="${layer.id}"]`);
+    if (!element) return renderLayers();
+    Object.assign(element.style, {
+      left:`${layer.x}px`, top:`${layer.y}px`, width:`${layer.w}px`, height:`${layer.h}px`,
+      zIndex:layer.z, opacity:layer.opacity ?? 1, transform:`rotate(${layer.rotation || 0}deg)`,
+      borderRadius:`${layer.radius || 0}px`,
+    });
+    if (layer.type === "image") {
+      const image = $("img", element);
+      if (image) {
+        if (image.src !== layer.src) image.src = layer.src;
+        image.style.objectFit = layer.fit || "cover";
+        image.style.borderRadius = `${layer.radius || 0}px`;
+        image.style.objectPosition = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
+        image.style.transformOrigin = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
+        image.style.transform = `scale(${layer.imageScale || 1})`;
+        image.style.filter = layer.filter || "none";
+      }
+    } else {
+      const textNode = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+      if (textNode) textNode.nodeValue = layer.text;
+      Object.assign(element.style, {
+        fontFamily:layer.fontFamily, fontSize:`${layer.fontSize}px`, fontWeight:layer.fontWeight || 400,
+        color:layer.color, textAlign:layer.align || "left", letterSpacing:layer.letterSpacing || "normal",
+        textTransform:layer.textTransform || "none",
+      });
+    }
+    syncProperties();
+  }
+
+  function mutateSelected(mutator, history = false, fullRender = false) {
     const layer = selectedLayer();
     if (!layer) return;
     if (layer.locked) { showToast("Unlock this layer to edit it"); syncProperties(); return; }
     if (history) pushHistory();
     mutator(layer);
-    renderLayers();
+    if (fullRender) renderLayers();
+    else updateLayerElement(layer);
     scheduleSave();
   }
 
@@ -743,7 +865,7 @@
       button.title = "Drag into a photo frame or click to add";
       button.setAttribute("aria-label", "Add uploaded photo to canvas");
       button.innerHTML = `<img src="${item.src}" alt="Uploaded photo" />`;
-      button.addEventListener("click", () => addImage(item.src, item.w, item.h));
+      button.addEventListener("click", () => addImage(item.src, item.w, item.h, null, item.id));
       button.addEventListener("dragstart", (event) => {
         if (state.frameDrawMode) setFrameDrawMode(false, false);
         event.dataTransfer.effectAllowed = "copy";
@@ -763,7 +885,9 @@
       remove.textContent = "×";
       remove.addEventListener("click", (event) => {
         event.stopPropagation();
+        state.layers.forEach((layer) => { if (layer.mediaId === item.id) layer.mediaId = null; });
         state.media = state.media.filter((media) => media.id !== item.id);
+        mediaDirty = true;
         renderMedia();
         scheduleSave();
         showToast("Photo removed from Media · canvas copies stay in place");
@@ -778,6 +902,7 @@
     if (layer.locked) { showToast("Unlock this layer to replace its photo"); return false; }
     pushHistory();
     layer.src = item.src;
+    layer.mediaId = item.id;
     layer.fit = "cover";
     layer.imageScale = 1;
     layer.focusX = 50;
@@ -800,13 +925,14 @@
         image.onload = () => {
           const item = { id: uid(), src: reader.result, w: image.naturalWidth, h: image.naturalHeight };
           state.media.push(item);
+          mediaDirty = true;
           renderMedia();
           const targetLayer = index === 0 && targetLayerId ? state.layers.find((layer) => layer.id === targetLayerId) : null;
           if (targetLayer) {
             replacePhotoInLayer(targetLayer, item);
           } else if (placeOnCanvas) {
             const offsetPlacement = placement ? { x:placement.x + index * 24, y:placement.y + index * 24 } : null;
-            addImage(item.src, item.w, item.h, offsetPlacement);
+            addImage(item.src, item.w, item.h, offsetPlacement, item.id);
           } else {
             scheduleSave();
           }
@@ -1697,7 +1823,7 @@
           return;
         }
       }
-      addImage(item.src, item.w, item.h, placement);
+      addImage(item.src, item.w, item.h, placement, item.id);
       showToast("Photo added where you dropped it");
     });
     $("#deleteLayer").addEventListener("click", deleteSelected);
@@ -1731,8 +1857,8 @@
     $("#fontSizeRange").addEventListener("input", (event) => mutateSelected((layer) => layer.fontSize=Number(event.target.value)));
     $("#textColor").addEventListener("input", (event) => mutateSelected((layer) => layer.color=event.target.value));
     $$("#textAlign button").forEach((button) => button.addEventListener("click", () => mutateSelected((layer) => layer.align=button.dataset.align, true)));
-    $("#sendBack").addEventListener("click", () => mutateSelected((layer) => layer.z=Math.min(...state.layers.map((item)=>item.z))-1, true));
-    $("#bringFront").addEventListener("click", () => mutateSelected((layer) => layer.z=nextZ(), true));
+    $("#sendBack").addEventListener("click", () => mutateSelected((layer) => layer.z=Math.min(...state.layers.map((item)=>item.z))-1, true, true));
+    $("#bringFront").addEventListener("click", () => mutateSelected((layer) => layer.z=nextZ(), true, true));
     $("#duplicateLayer").addEventListener("click", duplicateSelected);
     $("#previewButton").addEventListener("click", openPreview);
     $("#mobilePreviewButton").addEventListener("click", openPreview);
