@@ -32,6 +32,7 @@
     previewIndex: 0,
     activeTemplate: null,
     templatePhotoCount: 3,
+    templateDefaultsVersion: 2,
     cropModeId: null,
     frameDrawMode: false,
   };
@@ -64,6 +65,7 @@
       media: state.media,
       activeTemplate: state.activeTemplate,
       templatePhotoCount: state.templatePhotoCount,
+      templateDefaultsVersion: state.templateDefaultsVersion,
     };
   }
 
@@ -115,6 +117,24 @@
       const index = JSON.parse(localStorage.getItem("seam-project-index") || "[]");
       return Array.isArray(index) ? index : [];
     } catch { return []; }
+  }
+
+  function migrateTemplatePhotoDefaults() {
+    if ((state.templateDefaultsVersion || 0) >= 2) return false;
+    const slots = state.layers.filter((layer) => layer.type === "image" && layer.templateSlot).sort((a,b) => a.z - b.z);
+    slots.forEach((layer) => { layer.radius = 0; layer.fit = "cover"; });
+    const { w, h } = RATIO_SIZES[state.ratio] || RATIO_SIZES["4:5"];
+    if (state.activeTemplate === "seasonal-edit" && slots.length >= 2) {
+      Object.assign(slots[0], {x:0,y:0,w,h:h/2});
+      Object.assign(slots[1], {x:0,y:h/2,w,h:h/2});
+    } else if (state.activeTemplate === "four-frames" && slots.length >= 4) {
+      [[0,0],[w/2,0],[0,h/2],[w/2,h/2]].forEach(([x,y], index) => Object.assign(slots[index], {x,y,w:w/2,h:h/2}));
+    } else if (state.activeTemplate === "duo" && slots.length >= 2) {
+      Object.assign(slots[0], {x:0,y:0,w,h});
+      Object.assign(slots[1], {x:w,y:0,w,h});
+    }
+    state.templateDefaultsVersion = 2;
+    return true;
   }
 
   function openDatabase() {
@@ -195,6 +215,7 @@
         state.updatedAt ||= Date.now();
         if (!Array.isArray(state.slideBackgrounds)) state.slideBackgrounds = [];
         if (!Array.isArray(state.media)) state.media = [];
+        migrateTemplatePhotoDefaults();
         if (legacy) {
           await putProject(structuredClone(projectData()));
           updateProjectIndex(projectData());
@@ -551,9 +572,11 @@
         selectedId:null, history:[], future:[], previewIndex:0, cropModeId:null, frameDrawMode:false,
         backgroundStart:data.backgroundStart || 0, backgroundSpan:data.backgroundSpan || "all",
       });
+      const migrated = migrateTemplatePhotoDefaults();
       localStorage.setItem("seam-current-project", state.projectId);
       syncAll();
       showEditor();
+      if (migrated) scheduleSave();
     } catch (error) { console.error(error); showToast("This project could not be opened"); }
   }
 
@@ -564,6 +587,7 @@
       background:"#f4f1e8", slideBackgrounds:[], backgroundStart:0, backgroundSpan:"all", zoom:55,
       layers:[], media:[], selectedId:null, history:[], future:[], previewIndex:0,
       activeTemplate:"blank-single", templatePhotoCount:3, cropModeId:null, frameDrawMode:false,
+      templateDefaultsVersion:2,
     });
     persistEnabled = true;
     $$("[data-template-group]").forEach((button) => button.classList.toggle("active", button.dataset.templateGroup === "single"));
@@ -864,8 +888,8 @@
     pushHistory();
     state.activeTemplate = name;
     state.templatePhotoCount = name === "quiet-triptych" ? 3 : null;
+    state.templateDefaultsVersion = 2;
     const singleTemplates = ["blank-single", "seasonal-edit", "split-focus", "four-frames", "scrapbook", "nine-mood", "portrait-notes", "quiet-triptych"];
-    const isCarouselTemplate = !singleTemplates.includes(name);
     const carouselSlideCounts = {
       duo:2, "wedding-story":5, "garden-flow":6, "monochrome-vows":5, "minimal-frames":5, "collage-reel":6,
       "border-mosaic":6, "fullbleed-mosaic":6, "overlap-story":6, "family-tapestry":5, "coastal-echoes":6,
@@ -880,7 +904,7 @@
     state.selectedId = null;
     const photo = (x, y, width, height, colors, options = {}) => ({
       id:uid(), type:"image", src:makePlaceholder(colors, width, height), x, y, w:width, h:height,
-      z:options.z ?? 1, opacity:1, radius:isCarouselTemplate ? 0 : (options.radius ?? 0), fit:"cover", rotation:options.rotation ?? 0,
+      z:options.z ?? 1, opacity:1, radius:0, fit:"cover", rotation:options.rotation ?? 0,
       filter:options.filter || "none", templateSlot:true, imageScale:1, focusX:50, focusY:50, hidden:false, locked:false,
     });
     const copy = (content, x, y, width, height, options = {}) => ({
@@ -895,8 +919,8 @@
       state.background = "#f4f1e8";
     } else if (name === "seasonal-edit") {
       state.background = "#e9e5dc";
-      state.layers.push(photo(10, 10, w-20, h*.50, ["#cdd4d9", "#f1e8df"], {radius:24}));
-      state.layers.push(photo(10, h*.48, w-20, h*.51, ["#9d7458", "#e7bd93"], {radius:24, z:2}));
+      state.layers.push(photo(0, 0, w, h/2, ["#cdd4d9", "#f1e8df"]));
+      state.layers.push(photo(0, h/2, w, h/2, ["#9d7458", "#e7bd93"], {z:2}));
       state.layers.push(copy("THE\nSEASONS", 148, h*.41, 300, 130, {fontFamily:"'Instrument Serif', serif", fontSize:67, fontWeight:400, color:"#fffaf3", z:6}));
       state.layers.push(copy("NEW FASHION COLLECTION\nNOW AVAILABLE", 322, h*.475, 170, 42, {fontSize:13, fontWeight:600, color:"#fffaf3", z:7}));
     } else if (name === "split-focus") {
@@ -907,11 +931,11 @@
       state.layers.push(copy("SPRING / SUMMER\nA STUDY IN CONTRAST", 175, h*.515, 190, 55, {fontSize:11, fontWeight:600, color:"#fff", align:"center", letterSpacing:".1em", z:5}));
     } else if (name === "four-frames") {
       state.background = "#f7f5ef";
-      const gap=7, margin=10, cellW=(w-margin*2-gap)/2, cellH=(h-margin*2-gap)/2;
-      state.layers.push(photo(margin, margin, cellW, cellH, ["#a78c6c", "#e5d2b7"], {radius:22}));
-      state.layers.push(photo(margin+cellW+gap, margin, cellW, cellH, ["#e8e5dc", "#85908e"], {radius:22, z:2}));
-      state.layers.push(photo(margin, margin+cellH+gap, cellW, cellH, ["#d9d9d0", "#6e6b61"], {radius:22, z:3}));
-      state.layers.push(photo(margin+cellW+gap, margin+cellH+gap, cellW, cellH, ["#ddb9a7", "#7f8d72"], {radius:22, z:4}));
+      const cellW=w/2, cellH=h/2;
+      state.layers.push(photo(0, 0, cellW, cellH, ["#a78c6c", "#e5d2b7"]));
+      state.layers.push(photo(cellW, 0, cellW, cellH, ["#e8e5dc", "#85908e"], {z:2}));
+      state.layers.push(photo(0, cellH, cellW, cellH, ["#d9d9d0", "#6e6b61"], {z:3}));
+      state.layers.push(photo(cellW, cellH, cellW, cellH, ["#ddb9a7", "#7f8d72"], {z:4}));
     } else if (name === "scrapbook") {
       state.background = "#eee4d5";
       state.layers.push(photo(-18, -12, w*.60, h*.48, ["#6d604d", "#b9a073"], {rotation:-3, radius:18, z:1}));
@@ -921,7 +945,7 @@
       state.layers.push(copy("SUNDAY\nNOTES", 203, 300, 150, 80, {fontFamily:"'Instrument Serif', serif", fontSize:38, color:"#fffaf1", align:"center", rotation:-2, z:8}));
     } else if (name === "nine-mood") {
       state.background = "#f2eee5";
-      const gap=6, margin=8, cellW=(w-margin*2-gap*2)/3, cellH=(h-margin*2-gap*2)/3;
+      const gap=0, margin=0, cellW=w/3, cellH=h/3;
       const palettes=[["#777","#ccc"],["#e4dfd1","#aaa"],["#4d4d4b","#999"],["#a69b83","#dfd7c7"],["#d0c6b4","#777"],["#ede9df","#c7bfaa"],["#cac1a8","#e9e1d0"],["#9d9b96","#dad7cf"]];
       let paletteIndex=0;
       for(let row=0;row<3;row++) for(let col=0;col<3;col++) {
@@ -955,8 +979,8 @@
       state.layers.push(copy("OUT THERE",w*1.8,h*.38,w*.92,100,{fontSize:54,fontWeight:700,color:"#172528",align:"center",letterSpacing:".12em",z:3}));
     } else if (name === "duo") {
       state.background = "#eaccc5";
-      state.layers.push(photo(40,55,w*.82,h-110,["#a27670","#e1a8a0"],{radius:160}));
-      state.layers.push(photo(w*1.1,55,w*.82,h-110,["#526c6a","#b4bbb1"],{radius:160,z:2}));
+      state.layers.push(photo(0,0,w,h,["#a27670","#e1a8a0"]));
+      state.layers.push(photo(w,0,w,h,["#526c6a","#b4bbb1"],{z:2}));
       state.layers.push(copy("US / HERE",w*.72,h*.45,w*.62,65,{fontSize:30,fontWeight:700,color:"#fffaf1",align:"center",letterSpacing:".13em",z:3}));
     } else if (name === "wedding-story") {
       state.background = "#f6f1e8";
@@ -1176,7 +1200,7 @@
 
   function makePlaceholder(colors, width, height) {
     const [a, b] = colors;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(10,width)}" height="${Math.max(10,height)}" viewBox="0 0 800 800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient><filter id="n"><feTurbulence baseFrequency=".65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .09"/></feComponentTransfer></filter></defs><rect width="800" height="800" fill="url(#g)"/><circle cx="630" cy="160" r="190" fill="rgba(255,255,255,.16)"/><path d="M0 650 Q220 400 410 590 T800 470 V800 H0Z" fill="rgba(20,30,30,.20)"/><rect width="800" height="800" filter="url(#n)" opacity=".45"/></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(10,width)}" height="${Math.max(10,height)}" viewBox="0 0 800 800" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient><filter id="n"><feTurbulence baseFrequency=".65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .09"/></feComponentTransfer></filter></defs><rect width="800" height="800" fill="url(#g)"/><circle cx="630" cy="160" r="190" fill="rgba(255,255,255,.16)"/><path d="M0 650 Q220 400 410 590 T800 470 V800 H0Z" fill="rgba(20,30,30,.20)"/><rect width="800" height="800" filter="url(#n)" opacity=".45"/></svg>`;
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }
 
