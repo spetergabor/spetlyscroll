@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0e0e10" />
+    <meta name="description" content="SEAM is a private, browser-based carousel studio for seamless social posts." />
+    <title>SEAM — seamless carousel studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <section class="home-screen" id="homeScreen">
+        <header class="home-topbar">
+          <div class="brand home-brand" aria-label="SEAM">
+            <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>SEAM</span>
+          </div>
+          <span class="home-topline">Your private design studio</span>
+          <button class="button primary home-new-button" id="newGraphicButton">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            New graphic
+          </button>
+        </header>
+        <main class="home-content">
+          <section class="home-hero">
+            <div>
+              <span class="eyebrow">Your creative space</span>
+              <h1>Pick up where you left off.</h1>
+              <p>Every graphic stays privately in this browser, ready for your next edit.</p>
+            </div>
+            <button class="quick-create" id="quickCreateButton">
+              <span class="quick-create-icon">+</span>
+              <span><b>Create something new</b><small>Blank 4:5 graphic</small></span>
+              <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </section>
+          <section class="home-projects-section">
+            <div class="home-section-heading">
+              <div><span class="eyebrow">Saved locally</span><h2>Your graphics</h2></div>
+              <span id="projectCount">0 projects</span>
+            </div>
+            <div class="project-grid" id="projectGrid"></div>
+          </section>
+        </main>
+      </section>
+
+      <header class="topbar">
+        <button class="brand" id="homeButton" aria-label="SEAM home">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>SEAM</span>
+        </button>
+
+        <div class="project-title-wrap">
+          <input id="projectTitle" class="project-title" value="Untitled carousel" aria-label="Project title" />
+          <span class="save-status" id="saveStatus">Saved locally</span>
+        </div>
+
+        <div class="top-actions">
+          <button class="icon-button" id="undoButton" title="Undo" aria-label="Undo" disabled>
+            <svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M5 12h9a5 5 0 0 1 5 5"/></svg>
+          </button>
+          <button class="icon-button" id="redoButton" title="Redo" aria-label="Redo" disabled>
+            <svg viewBox="0 0 24 24"><path d="m15 7 5 5-5 5m4-5h-9a5 5 0 0 0-5 5"/></svg>
+          </button>
+          <button class="button secondary" id="previewButton">Preview</button>
+          <button class="button primary" id="exportButton">
+            Export
+            <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="left-panel panel">
+          <nav class="tool-rail" aria-label="Editor tools">
+            <button class="rail-button active" data-panel="layouts" aria-label="Layouts">
+              <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="18" height="8" rx="1"/></svg>
+              <span>Layouts</span>
+            </button>
+            <button class="rail-button" data-panel="media" aria-label="Media">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 4"/></svg>
+              <span>Media</span>
+            </button>
+            <button class="rail-button" data-panel="text" aria-label="Text">
+              <svg viewBox="0 0 24 24"><path d="M5 5h14M12 5v14M8 19h8"/></svg>
+              <span>Text</span>
+            </button>
+            <button class="rail-button" data-panel="background" aria-label="Background">
+              <svg viewBox="0 0 24 24"><path d="M12 3s6 6.2 6 11a6 6 0 1 1-12 0c0-4.8 6-11 6-11Z"/><path d="M9 16c.6 1.2 1.6 1.8 3 1.8"/></svg>
+              <span>Backdrop</span>
+            </button>
+          </nav>
+
+          <section class="panel-content">
+            <div class="tool-panel active" id="panel-layouts">
+              <div class="panel-heading">
+                <div><span class="eyebrow">Start a story</span><h2>Layouts</h2></div>
+              </div>
+              <p class="panel-copy">Pick a starting rhythm. Drop your photos onto any image slot.</p>
+              <div class="template-tabs" id="templateTabs" aria-label="Template type">
+                <button class="active" data-template-group="single">Single post</button>
+                <button data-template-group="carousel">Carousel</button>
+              </div>
+              <div class="template-grid" id="templateGrid">
+                <button class="template-card selected" data-group="single" data-template="blank-single">
+                  <span class="template-preview blank-single-preview"><i></i></span>
+                  <span><b>Blank post</b><small>Single · 4:5</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="seasonal-edit">
+                  <span class="template-preview seasonal-preview"><i></i><i></i><em>THE<br>SEASONS</em></span>
+                  <span><b>Seasonal edit</b><small>Editorial · 2 photos</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="split-focus">
+                  <span class="template-preview split-preview"><i></i><i></i><em>AROWWAI</em></span>
+                  <span><b>Split focus</b><small>Fashion · 2 photos</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="four-frames">
+                  <span class="template-preview four-preview"><i></i><i></i><i></i><i></i></span>
+                  <span><b>Four frames</b><small>Grid · 4 photos</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="scrapbook">
+                  <span class="template-preview scrapbook-preview"><i></i><i></i><i></i><i></i></span>
+                  <span><b>Sunday scrapbook</b><small>Collage · 4 photos</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="nine-mood">
+                  <span class="template-preview nine-preview"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Nine mood</b><small>Grid · 8 photos</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="portrait-notes">
+                  <span class="template-preview notes-preview"><i></i><em>your<br>story</em><b>↗</b></span>
+                  <span><b>Portrait notes</b><small>Profile · 1 photo</small></span>
+                </button>
+                <button class="template-card" data-group="single" data-template="quiet-triptych">
+                  <span class="template-preview triptych-preview"><i></i><i></i><i></i><em>SUMMER MEMORIES</em></span>
+                  <span><b>Quiet stack</b><small>B&amp;W · 2–5 photos</small></span>
+                </button>
+
+                <button class="template-card template-hidden" data-group="carousel" data-template="blank-carousel">
+                  <span class="template-preview blank-preview"><i></i><i></i><i></i></span>
+                  <span><b>Blank carousel</b><small>Freeform · 3 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="editorial">
+                  <span class="template-preview editorial-preview"><i></i><i></i><i></i></span>
+                  <span><b>Editorial</b><small>3 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="panorama">
+                  <span class="template-preview panorama-preview"><i></i><i></i></span>
+                  <span><b>Panorama</b><small>3 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="duo">
+                  <span class="template-preview duo-preview"><i></i><i></i><i></i></span>
+                  <span><b>Soft duo</b><small>2 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="wedding-story">
+                  <span class="template-preview wedding-preview"><i></i><i></i><i></i><i></i><em>VOWS</em></span>
+                  <span><b>Wedding story</b><small>Editorial · 5 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="garden-flow">
+                  <span class="template-preview garden-preview"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Garden flow</b><small>Organic · 6 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="monochrome-vows">
+                  <span class="template-preview mono-preview"><i></i><i></i><i></i><i></i></span>
+                  <span><b>Monochrome vows</b><small>Film · 5 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="minimal-frames">
+                  <span class="template-preview frames-preview"><i></i><i></i><i></i><i></i></span>
+                  <span><b>Minimal frames</b><small>Gallery · 5 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="collage-reel">
+                  <span class="template-preview reel-preview"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Collage reel</b><small>Layered · 6 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="border-mosaic">
+                  <span class="template-preview border-mosaic-preview"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Border mosaic</b><small>Framed grid · 6 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="fullbleed-mosaic">
+                  <span class="template-preview fullbleed-mosaic-preview"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Full-bleed mosaic</b><small>Edge to edge · 6 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="overlap-story">
+                  <span class="template-preview overlap-preview"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Overlap story</b><small>Layered photos · 6 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="family-tapestry">
+                  <span class="template-preview family-preview"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Family tapestry</b><small>Warm grid · 5 slides</small></span>
+                </button>
+                <button class="template-card template-hidden" data-group="carousel" data-template="coastal-echoes">
+                  <span class="template-preview coastal-preview"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span><b>Coastal echoes</b><small>Airy collage · 6 slides</small></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="tool-panel" id="panel-media">
+              <div class="panel-heading"><div><span class="eyebrow">Your library</span><h2>Media</h2></div></div>
+              <label class="upload-zone" id="uploadZone">
+                <input type="file" id="mediaInput" accept="image/*" multiple />
+                <span class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg></span>
+                <b>Upload photos</b>
+                <small>or drag files anywhere</small>
+              </label>
+              <div class="media-grid" id="mediaGrid"></div>
+              <p class="media-drag-hint" id="mediaDragHint">Drag a photo into any frame to replace its placeholder, or click to add it freely.</p>
+              <div class="privacy-note">
+                <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                <span>Your photos never leave this browser.</span>
+              </div>
+            </div>
+
+            <div class="tool-panel" id="panel-text">
+              <div class="panel-heading"><div><span class="eyebrow">Add a voice</span><h2>Text</h2></div></div>
+              <button class="add-text-card display-text" data-text-style="display"><span>Aa</span><b>Display title</b></button>
+              <button class="add-text-card body-text" data-text-style="body"><span>Aa</span><b>Body text</b></button>
+              <button class="add-text-card label-text" data-text-style="label"><span>ABC</span><b>Small label</b></button>
+              <div class="tip-card"><b>Try crossing a seam</b><p>Place an image over two slides to create a satisfying, continuous swipe.</p></div>
+            </div>
+
+            <div class="tool-panel" id="panel-background">
+              <div class="panel-heading"><div><span class="eyebrow">Set the mood</span><h2>Backdrop</h2></div></div>
+              <p class="panel-copy">Choose where the canvas color begins and how many carousel slides it covers.</p>
+              <div class="background-map" id="backgroundMap" aria-label="Carousel background map"></div>
+              <div class="background-scope-grid">
+                <label class="field-label">Starts on<select id="backgroundStart" aria-label="Background starts on slide"></select></label>
+                <div class="field-label">Covers
+                  <div class="segmented background-span" id="backgroundSpan" aria-label="Background span">
+                    <button data-bg-span="1">1</button>
+                    <button data-bg-span="2">2</button>
+                    <button data-bg-span="3">3</button>
+                    <button class="active" data-bg-span="all">All</button>
+                  </div>
+                </div>
+              </div>
+              <p class="background-scope-status" id="backgroundScopeStatus">Entire carousel</p>
+              <div class="color-grid" id="colorGrid">
+                <button style="--swatch:#f4f1e8" data-color="#f4f1e8" class="selected" aria-label="Warm white"></button>
+                <button style="--swatch:#e9d8d0" data-color="#e9d8d0" aria-label="Blush"></button>
+                <button style="--swatch:#cbd4c2" data-color="#cbd4c2" aria-label="Sage"></button>
+                <button style="--swatch:#bacbd8" data-color="#bacbd8" aria-label="Sky"></button>
+                <button style="--swatch:#e8c86a" data-color="#e8c86a" aria-label="Sun"></button>
+                <button style="--swatch:#e86746" data-color="#e86746" aria-label="Coral"></button>
+                <button style="--swatch:#533c75" data-color="#533c75" aria-label="Violet"></button>
+                <button style="--swatch:#171719" data-color="#171719" aria-label="Ink"></button>
+              </div>
+              <label class="field-label">Custom color<input id="customColor" type="color" value="#f4f1e8" /></label>
+              <div class="tip-card background-tip"><b>Build a color sequence</b><p>Set one color for slides 1–2, then choose a new start slide and continue with another color.</p></div>
+            </div>
+          </section>
+        </aside>
+
+        <section class="stage-area" id="stageArea">
+          <div class="stage-toolbar">
+            <div class="segmented" aria-label="Canvas ratio">
+              <button class="active" data-ratio="4:5">4:5</button>
+              <button data-ratio="1:1">1:1</button>
+              <button data-ratio="9:16">9:16</button>
+            </div>
+            <div class="slide-stepper">
+              <span>Slides</span>
+              <button id="removeSlide" aria-label="Remove slide">−</button>
+              <b id="slideCount">3</b>
+              <button id="addSlide" aria-label="Add slide">+</button>
+            </div>
+            <label class="template-photo-count hidden" id="templatePhotoCount">
+              <span>Photos</span>
+              <select id="templatePhotoCountSelect" aria-label="Number of photos">
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </label>
+            <div class="zoom-control">
+              <button id="zoomOut" aria-label="Zoom out">−</button>
+              <input id="zoomRange" type="range" min="10" max="100" value="55" />
+              <button id="zoomIn" aria-label="Zoom in">+</button>
+              <span id="zoomValue">55%</span>
+            </div>
+          </div>
+
+          <div class="canvas-scroller" id="canvasScroller">
+            <div class="canvas-wrap" id="canvasWrap">
+              <div class="artboard" id="artboard" aria-label="Carousel canvas"></div>
+            </div>
+          </div>
+
+          <div class="stage-footer">
+            <div class="hint"><kbd>Shift</kbd><span>keep proportions</span><kbd>⌫</kbd><span>delete layer</span></div>
+            <button class="fit-button mobile-preview" id="mobilePreviewButton"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>Preview</button>
+            <button class="fit-button" id="fitButton"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></svg>Fit canvas</button>
+          </div>
+        </section>
+
+        <aside class="right-panel panel">
+          <div id="propertiesEmpty" class="properties-empty">
+            <div class="empty-orbit"><span></span><i></i></div>
+            <h3>Select a layer</h3>
+            <p>Click any photo or text on the canvas to fine-tune it here.</p>
+          </div>
+          <div id="propertiesPanel" class="properties-panel hidden">
+            <div class="properties-heading"><div><span class="eyebrow">Selected layer</span><h2 id="layerType">Photo</h2></div><div class="property-heading-actions"><button id="deleteLayer" class="icon-button danger" aria-label="Delete layer"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></svg></button><button id="closeProperties" class="icon-button property-close" aria-label="Close properties">×</button></div></div>
+            <div id="imageProperties">
+              <label class="field-label">Opacity <span id="opacityValue">100%</span><input id="opacityRange" type="range" min="10" max="100" value="100" /></label>
+              <label class="field-label">Corner radius <span id="radiusValue">0</span><input id="radiusRange" type="range" min="0" max="120" value="0" /></label>
+              <label class="field-label">Image zoom <span id="imageZoomValue">100%</span><input id="imageZoomRange" type="range" min="100" max="300" value="100" /></label>
+              <label class="field-label">Horizontal focus <span id="imageFocusXValue">50%</span><input id="imageFocusXRange" type="range" min="0" max="100" value="50" /></label>
+              <label class="field-label">Vertical focus <span id="imageFocusYValue">50%</span><input id="imageFocusYRange" type="range" min="0" max="100" value="50" /></label>
+              <button class="reposition-button" id="repositionImage"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20m-3-3 3 3-3 3M5 9l-3 3 3 3M9 5l3-3 3 3m-6 14 3 3 3-3"/></svg><span>Reposition on canvas</span></button>
+              <div class="field-label">Fit</div>
+              <div class="segmented wide"><button data-fit="cover" class="active">Fill</button><button data-fit="contain">Fit</button></div>
+            </div>
+            <div id="textProperties" class="hidden">
+              <label class="field-label">Text<textarea id="textContent" rows="4"></textarea></label>
+              <label class="field-label">Typeface<select id="fontFamily">
+                <optgroup label="Editorial serif">
+                  <option value="'Instrument Serif', serif">Instrument Serif</option>
+                  <option value="'Playfair Display', serif">Playfair Display</option>
+                  <option value="'Cormorant Garamond', serif">Cormorant Garamond</option>
+                  <option value="'Bodoni Moda', serif">Bodoni Moda</option>
+                  <option value="'Fraunces', serif">Fraunces</option>
+                  <option value="'Libre Baskerville', serif">Libre Baskerville</option>
+                </optgroup>
+                <optgroup label="Modern sans">
+                  <option value="'DM Sans', sans-serif">DM Sans</option>
+                  <option value="'Manrope', sans-serif">Manrope</option>
+                  <option value="'Space Grotesk', sans-serif">Space Grotesk</option>
+                  <option value="'Archivo Black', sans-serif">Archivo Black</option>
+                  <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+                </optgroup>
+                <optgroup label="Handwritten">
+                  <option value="'Caveat', cursive">Caveat</option>
+                </optgroup>
+              </select></label>
+              <div class="font-preview" id="fontPreview">Make it memorable</div>
+              <label class="field-label">Size <span id="fontSizeValue">72</span><input id="fontSizeRange" type="range" min="16" max="180" value="72" /></label>
+              <label class="field-label">Text color<input id="textColor" type="color" value="#171719" /></label>
+              <div class="segmented wide" id="textAlign"><button data-align="left" class="active">Left</button><button data-align="center">Center</button><button data-align="right">Right</button></div>
+            </div>
+            <div class="layer-actions">
+              <button id="sendBack"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="11" height="11" rx="1"/><path d="M9 19h10V9"/></svg>Send back</button>
+              <button id="bringFront"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="1"/><path d="M15 5H5v10"/></svg>Bring front</button>
+              <button id="duplicateLayer"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></svg>Duplicate</button>
+            </div>
+          </div>
+          <section class="layers-section">
+            <div class="layers-heading"><div><span class="eyebrow">Canvas stack</span><h3>Layers</h3></div><span id="layerCount">0</span></div>
+            <div class="layers-list" id="layersList"></div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <div class="drop-overlay" id="dropOverlay"><div><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg><b>Drop onto a photo frame or canvas</b></div></div>
+
+    <dialog id="previewDialog" class="preview-dialog">
+      <div class="dialog-top"><div><span class="eyebrow">Swipe preview</span><h2>Your carousel</h2></div><button class="close-button" data-close-dialog aria-label="Close">×</button></div>
+      <div class="phone-preview"><div class="phone-top"><span class="avatar">S</span><b>your.story</b><span>•••</span></div><div class="preview-viewport" id="previewViewport"><div id="previewStrip"></div></div><div class="phone-actions"><span>♡</span><span>◯</span><span>⌁</span><i></i><span>⌑</span></div></div>
+      <div class="preview-controls"><button id="previewPrev">←</button><span id="previewDots"></span><button id="previewNext">→</button></div>
+    </dialog>
+
+    <dialog id="exportDialog" class="export-dialog">
+      <div class="dialog-top"><div><span class="eyebrow">Ready to post</span><h2>Export carousel</h2></div><button class="close-button" data-close-dialog aria-label="Close">×</button></div>
+      <div class="export-summary"><div class="export-stack" id="exportStack"></div><div><b id="exportSummaryTitle">3 high-quality slides</b><p>Images are rendered locally and downloaded in posting order.</p></div></div>
+      <label class="field-label">File type<select id="exportFormat"><option value="png">PNG — best quality</option><option value="jpeg">JPEG — smaller files</option></select></label>
+      <label class="field-label">Quality <span id="exportQualityValue">92%</span><input id="exportQuality" type="range" min="60" max="100" value="92" /></label>
+      <button class="button primary export-confirm" id="confirmExport"><span>Download all slides</span><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg></button>
+      <p class="export-note">Your browser may ask permission for multiple downloads.</p>
+    </dialog>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

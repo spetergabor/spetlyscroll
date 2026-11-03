@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#d9ff63"/>
+      <stop offset="1" stop-color="#7258d9"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="1000" fill="#171719"/>
+  <circle cx="400" cy="500" r="290" fill="url(#g)"/>
+  <circle cx="400" cy="500" r="115" fill="#171719"/>
+  <text x="400" y="910" fill="white" font-family="Arial" font-size="42" text-anchor="middle">DRAG TEST</text>
+</svg>
