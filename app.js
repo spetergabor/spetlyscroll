@@ -865,6 +865,7 @@
     state.activeTemplate = name;
     state.templatePhotoCount = name === "quiet-triptych" ? 3 : null;
     const singleTemplates = ["blank-single", "seasonal-edit", "split-focus", "four-frames", "scrapbook", "nine-mood", "portrait-notes", "quiet-triptych"];
+    const isCarouselTemplate = !singleTemplates.includes(name);
     const carouselSlideCounts = {
       duo:2, "wedding-story":5, "garden-flow":6, "monochrome-vows":5, "minimal-frames":5, "collage-reel":6,
       "border-mosaic":6, "fullbleed-mosaic":6, "overlap-story":6, "family-tapestry":5, "coastal-echoes":6,
@@ -879,7 +880,7 @@
     state.selectedId = null;
     const photo = (x, y, width, height, colors, options = {}) => ({
       id:uid(), type:"image", src:makePlaceholder(colors, width, height), x, y, w:width, h:height,
-      z:options.z ?? 1, opacity:1, radius:options.radius ?? 0, fit:"cover", rotation:options.rotation ?? 0,
+      z:options.z ?? 1, opacity:1, radius:isCarouselTemplate ? 0 : (options.radius ?? 0), fit:"cover", rotation:options.rotation ?? 0,
       filter:options.filter || "none", templateSlot:true, imageScale:1, focusX:50, focusY:50, hidden:false, locked:false,
     });
     const copy = (content, x, y, width, height, options = {}) => ({
