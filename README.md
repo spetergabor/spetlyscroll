@@ -2,6 +2,8 @@
 
 Spetlyscroll is a private, browser-based studio for creating seamless social-media carousels. Photos stay on the device, projects autosave in the browser, and finished slides export in posting order.
 
+[Open the web app](https://spetergabor.github.io/spetlyscroll/) · [Download the desktop app](https://github.com/spetergabor/spetlyscroll/releases/latest)
+
 ## Features
 
 - Home dashboard with visual previews of saved graphics and a one-click new graphic action
@@ -21,6 +23,7 @@ Spetlyscroll is a private, browser-based studio for creating seamless social-med
 - Swipe preview
 - High-resolution PNG or JPEG export
 - No account, backend, tracking, or upload
+- Native offline macOS desktop app with the same browser-local privacy model
 
 ## Run locally
 
@@ -31,6 +34,23 @@ python3 -m http.server 4173
 ```
 
 Then open `http://localhost:4173`.
+
+## Desktop app
+
+The macOS desktop app wraps the same static editor in a sandboxed Electron window and works offline. To run it during development:
+
+```bash
+npm install
+npm run desktop
+```
+
+To create Apple Silicon DMG and ZIP installers:
+
+```bash
+npm run desktop:build
+```
+
+The downloadable build is unsigned. On first launch, macOS may require **Control-click → Open** from Finder.
 
 ## Deploy on GitHub Pages
 
