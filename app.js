@@ -609,8 +609,10 @@
     return true;
   }
 
-  function handleFiles(files, targetLayerId = null, placement = null) {
-    [...files].filter((file) => file.type.startsWith("image/")).forEach((file, index) => {
+  function handleFiles(files, targetLayerId = null, placement = null, placeOnCanvas = false) {
+    const imageFiles = [...files].filter((file) => file.type.startsWith("image/"));
+    let loadedCount = 0;
+    imageFiles.forEach((file, index) => {
       const reader = new FileReader();
       reader.onload = () => {
         const image = new Image();
@@ -621,10 +623,15 @@
           const targetLayer = index === 0 && targetLayerId ? state.layers.find((layer) => layer.id === targetLayerId) : null;
           if (targetLayer) {
             replacePhotoInLayer(targetLayer, item);
-          } else {
+          } else if (placeOnCanvas) {
             const offsetPlacement = placement ? { x:placement.x + index * 24, y:placement.y + index * 24 } : null;
             addImage(item.src, item.w, item.h, offsetPlacement);
-            if (!placement && !targetLayerId) switchPanel("media");
+          } else {
+            scheduleSave();
+          }
+          loadedCount++;
+          if (!targetLayer && !placeOnCanvas && loadedCount === imageFiles.length) {
+            showToast(`${imageFiles.length} ${imageFiles.length === 1 ? "photo" : "photos"} added to Media`);
           }
         };
         image.src = reader.result;
@@ -1425,7 +1432,7 @@
         y: (event.clientY - rect.top) / scaleY,
       };
       if (imageFiles.length) {
-        handleFiles(imageFiles, slotElement?.dataset.id || null, placement);
+        handleFiles(imageFiles, slotElement?.dataset.id || null, placement, true);
         return;
       }
       const item = state.media.find((media) => media.id === mediaId);
