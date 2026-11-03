@@ -258,6 +258,10 @@
               <button data-ratio="1:1">1:1</button>
               <button data-ratio="9:16">9:16</button>
             </div>
+            <button class="frame-tool-button" id="drawFrameButton" type="button" aria-pressed="false" title="Draw a photo frame anywhere on the canvas">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="m3 16 5-5 4 4 3-3 6 6M17 8h.01"/></svg>
+              <span>Photo frame</span>
+            </button>
             <div class="slide-stepper">
               <span>Slides</span>
               <button id="removeSlide" aria-label="Remove slide">−</button>
@@ -288,7 +292,7 @@
           </div>
 
           <div class="stage-footer">
-            <div class="hint"><kbd>Shift</kbd><span>keep proportions</span><kbd>⌫</kbd><span>delete layer</span></div>
+            <div class="hint"><kbd>Shift</kbd><span>keep proportions</span><kbd>⌫</kbd><span>delete layer</span><kbd>Esc</kbd><span>finish drawing</span></div>
             <button class="fit-button mobile-preview" id="mobilePreviewButton"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>Preview</button>
             <button class="fit-button" id="fitButton"><svg viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></svg>Fit canvas</button>
           </div>

@@ -29,6 +29,7 @@
     activeTemplate: null,
     templatePhotoCount: 3,
     cropModeId: null,
+    frameDrawMode: false,
   };
 
   let drag = null;
@@ -206,13 +207,13 @@
     if (!state.layers.length) {
       const empty = document.createElement("div");
       empty.className = "canvas-empty";
-      empty.innerHTML = "<span>Your story starts here.</span><small>Upload a photo or choose a layout.</small>";
+      empty.innerHTML = "<span>Your story starts here.</span><small>Draw a photo frame, upload media, or choose a layout.</small>";
       artboard.appendChild(empty);
     }
 
     [...state.layers].filter((layer) => !layer.hidden).sort((a, b) => a.z - b.z).forEach((layer) => {
       const element = document.createElement("div");
-      element.className = `canvas-layer ${layer.type}-layer${layer.templateSlot ? " template-slot" : ""}${layer.id === state.selectedId ? " selected" : ""}${layer.id === state.cropModeId ? " crop-mode" : ""}${layer.locked ? " locked" : ""}`;
+      element.className = `canvas-layer ${layer.type}-layer${layer.templateSlot ? " template-slot" : ""}${layer.userFrame ? " user-frame" : ""}${layer.id === state.selectedId ? " selected" : ""}${layer.id === state.cropModeId ? " crop-mode" : ""}${layer.locked ? " locked" : ""}`;
       element.dataset.id = layer.id;
       Object.assign(element.style, {
         left: `${layer.x}px`,
@@ -263,6 +264,7 @@
 
     syncProperties();
     renderLayerList();
+    syncFrameDrawMode();
   }
 
   function selectLayer(id) {
@@ -410,7 +412,7 @@
         projectId:data.projectId || projectId,
         updatedAt:data.updatedAt || Date.now(),
         slideBackgrounds:Array.isArray(data.slideBackgrounds) ? data.slideBackgrounds : [],
-        selectedId:null, history:[], future:[], previewIndex:0, cropModeId:null,
+        selectedId:null, history:[], future:[], previewIndex:0, cropModeId:null, frameDrawMode:false,
         backgroundStart:0, backgroundSpan:"all",
       });
       localStorage.setItem("seam-current-project", state.projectId);
@@ -425,7 +427,7 @@
       projectId:uid(), updatedAt:Date.now(), title:"Untitled graphic", slides:1, ratio:"4:5",
       background:"#f4f1e8", slideBackgrounds:[], backgroundStart:0, backgroundSpan:"all", zoom:55,
       layers:[], media:[], selectedId:null, history:[], future:[], previewIndex:0,
-      activeTemplate:"blank-single", templatePhotoCount:3, cropModeId:null,
+      activeTemplate:"blank-single", templatePhotoCount:3, cropModeId:null, frameDrawMode:false,
     });
     persistEnabled = true;
     $$("[data-template-group]").forEach((button) => button.classList.toggle("active", button.dataset.templateGroup === "single"));
@@ -576,6 +578,7 @@
       button.innerHTML = `<img src="${item.src}" alt="Uploaded photo" />`;
       button.addEventListener("click", () => addImage(item.src, item.w, item.h));
       button.addEventListener("dragstart", (event) => {
+        if (state.frameDrawMode) setFrameDrawMode(false, false);
         event.dataTransfer.effectAllowed = "copy";
         event.dataTransfer.setData("application/x-seam-media", item.id);
         event.dataTransfer.setData("text/plain", item.id);
@@ -1012,7 +1015,57 @@
     return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }
 
+  function syncFrameDrawMode() {
+    const button = $("#drawFrameButton");
+    if (!button) return;
+    button.classList.toggle("active", !!state.frameDrawMode);
+    button.setAttribute("aria-pressed", String(!!state.frameDrawMode));
+    button.title = state.frameDrawMode
+      ? "Drawing photo frames — drag on the canvas, press Esc to finish"
+      : "Draw a photo frame anywhere on the canvas";
+    artboard.classList.toggle("frame-draw-mode", !!state.frameDrawMode);
+  }
+
+  function setFrameDrawMode(active, announce = true) {
+    state.frameDrawMode = !!active;
+    state.cropModeId = null;
+    if (!state.frameDrawMode && drag?.mode === "draw-frame") {
+      drag.draft?.remove();
+      drag = null;
+      window.removeEventListener("pointermove", pointerMove);
+    }
+    syncFrameDrawMode();
+    if (announce) showToast(state.frameDrawMode ? "Drag anywhere on the canvas to draw photo frames · Esc to finish" : "Photo frame tool closed");
+  }
+
+  function canvasPoint(clientX, clientY) {
+    const rect = artboard.getBoundingClientRect();
+    const { w, h } = ratioInfo();
+    return {
+      x: Math.max(0, Math.min(w * state.slides, (clientX - rect.left) / rect.width * w * state.slides)),
+      y: Math.max(0, Math.min(h, (clientY - rect.top) / rect.height * h)),
+    };
+  }
+
+  function startFrameDraw(event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const point = canvasPoint(event.clientX, event.clientY);
+    pushHistory();
+    const draft = document.createElement("div");
+    draft.className = "frame-draft";
+    Object.assign(draft.style, { left:`${point.x}px`, top:`${point.y}px`, width:"0px", height:"0px" });
+    artboard.appendChild(draft);
+    drag = {
+      mode:"draw-frame", startCanvasX:point.x, startCanvasY:point.y,
+      x:point.x, y:point.y, w:0, h:0, moved:false, draft,
+    };
+    window.addEventListener("pointermove", pointerMove);
+    window.addEventListener("pointerup", pointerEnd, { once:true });
+  }
+
   function pointerStart(event) {
+    if (state.frameDrawMode) { startFrameDraw(event); return; }
     const layerElement = event.target.closest(".canvas-layer");
     if (!layerElement) { state.selectedId = null; state.cropModeId = null; renderLayers(); return; }
     event.preventDefault();
@@ -1038,6 +1091,16 @@
 
   function pointerMove(event) {
     if (!drag) return;
+    if (drag.mode === "draw-frame") {
+      const point = canvasPoint(event.clientX, event.clientY);
+      drag.x = Math.min(drag.startCanvasX, point.x);
+      drag.y = Math.min(drag.startCanvasY, point.y);
+      drag.w = Math.abs(point.x - drag.startCanvasX);
+      drag.h = Math.abs(point.y - drag.startCanvasY);
+      drag.moved = drag.w + drag.h > 4;
+      Object.assign(drag.draft.style, { left:`${drag.x}px`, top:`${drag.y}px`, width:`${drag.w}px`, height:`${drag.h}px` });
+      return;
+    }
     const layer = state.layers.find((item) => item.id === drag.id);
     if (!layer) return;
     const scale = state.zoom / 100;
@@ -1058,7 +1121,7 @@
     } else {
       let newW = Math.max(45, drag.w + dx);
       let newH = Math.max(35, drag.h + dy);
-      if (event.shiftKey || layer.type === "image") newH = newW / drag.aspect;
+      if (event.shiftKey || (layer.type === "image" && !layer.userFrame)) newH = newW / drag.aspect;
       layer.w = newW;
       layer.h = newH;
     }
@@ -1067,6 +1130,32 @@
   }
 
   function pointerEnd() {
+    if (drag?.mode === "draw-frame") {
+      const drawing = drag;
+      drawing.draft?.remove();
+      const { w:canvasW, h:canvasH } = ratioInfo();
+      let { x, y, w, h } = drawing;
+      if (!drawing.moved || w < 12 || h < 12) {
+        w = Math.min(220, canvasW * .42);
+        h = Math.min(170, canvasH * .28);
+        x = Math.max(0, Math.min(canvasW * state.slides - w, drawing.startCanvasX - w / 2));
+        y = Math.max(0, Math.min(canvasH - h, drawing.startCanvasY - h / 2));
+      }
+      const layer = {
+        id:uid(), type:"image", src:makePlaceholder(["#d9d6cc", "#929791"], w, h),
+        x, y, w, h, z:nextZ(), opacity:1, radius:0, fit:"cover", rotation:0,
+        templateSlot:true, userFrame:true, imageScale:1, focusX:50, focusY:50, hidden:false, locked:false,
+      };
+      state.layers.push(layer);
+      state.selectedId = layer.id;
+      drag = null;
+      window.removeEventListener("pointermove", pointerMove);
+      renderLayers();
+      scheduleSave();
+      updateHistoryButtons();
+      showToast("Photo frame created · drag media into it or draw another");
+      return;
+    }
     if (drag && !drag.moved) state.history.pop();
     drag = null;
     window.removeEventListener("pointermove", pointerMove);
@@ -1275,6 +1364,7 @@
     $("#zoomIn").addEventListener("click", () => { state.zoom=Math.min(100,state.zoom+5); updateZoom(); });
     $("#zoomOut").addEventListener("click", () => { state.zoom=Math.max(10,state.zoom-5); updateZoom(); });
     $("#fitButton").addEventListener("click", fitCanvas);
+    $("#drawFrameButton").addEventListener("click", () => setFrameDrawMode(!state.frameDrawMode));
     $("#projectTitle").addEventListener("input", (event) => { state.title=event.target.value; scheduleSave(); });
     $("#undoButton").addEventListener("click", undo);
     $("#redoButton").addEventListener("click", redo);
@@ -1295,6 +1385,7 @@
     };
     artboard.addEventListener("dragenter", (event) => {
       if (!isPhotoDrag(event)) return;
+      if (state.frameDrawMode) setFrameDrawMode(false, false);
       event.preventDefault();
       event.stopPropagation();
       $("#dropOverlay").classList.remove("show");
@@ -1388,6 +1479,7 @@
       if (["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName)) return;
       if (event.key === "Backspace" || event.key === "Delete") { event.preventDefault(); deleteSelected(); }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
+      if (event.key === "Escape" && state.frameDrawMode) { setFrameDrawMode(false); return; }
       if (event.key === "Escape") { state.selectedId=null; state.cropModeId=null; renderLayers(); $(".left-panel").classList.remove("open"); }
     });
 

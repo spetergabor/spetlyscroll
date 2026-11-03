@@ -284,6 +284,10 @@ h2 { font-size: 21px; margin: 3px 0 0; line-height: 1.1; }
 .segmented.wide { width:100%; }
 .segmented.wide button { flex:1; }
 .slide-stepper,.zoom-control { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:10px; }
+.frame-tool-button { height:32px; padding:0 12px; display:flex; align-items:center; gap:7px; border:1px solid rgba(255,255,255,.12); border-radius:8px; background:#1a1a1d; color:#b6b6bc; font-size:10px; font-weight:650; cursor:crosshair; transition:border-color .15s,background .15s,color .15s,box-shadow .15s; }
+.frame-tool-button svg { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.7; }
+.frame-tool-button:hover { border-color:rgba(217,255,99,.38); color:var(--text); }
+.frame-tool-button.active { border-color:var(--accent); background:rgba(217,255,99,.12); color:var(--accent); box-shadow:0 0 0 3px rgba(217,255,99,.06); }
 .template-photo-count { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:10px; }
 .template-photo-count select { height:27px; min-width:48px; padding:0 22px 0 9px; border:1px solid var(--line); border-radius:7px; background:#1a1a1d; color:var(--text); font-size:11px; }
 .slide-stepper button,.zoom-control button { width:25px; height:25px; padding:0; border:1px solid var(--line); background:#1a1a1d; border-radius:6px; color:var(--text); cursor:pointer; }
@@ -295,6 +299,8 @@ h2 { font-size: 21px; margin: 3px 0 0; line-height: 1.1; }
 .artboard { width:var(--artboard-w); height:var(--artboard-h); transform-origin:top left; position:absolute; left:70px; top:65px; overflow:hidden; background:#f4f1e8; box-shadow:0 24px 80px rgba(0,0,0,.46); user-select:none; isolation:isolate; }
 .canvas-background-slide { position:absolute; top:0; bottom:0; pointer-events:none; z-index:0; }
 .artboard.media-drop-target { outline:4px solid var(--accent); outline-offset:7px; box-shadow:0 24px 80px rgba(0,0,0,.46),0 0 0 14px rgba(217,255,99,.12); }
+.artboard.frame-draw-mode { cursor:crosshair; outline:2px solid rgba(217,255,99,.72); outline-offset:6px; }
+.artboard.frame-draw-mode .canvas-layer { pointer-events:none; }
 .artboard::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:1000; background:repeating-linear-gradient(90deg,transparent 0,transparent calc(var(--slide-w) - 1px),rgba(37,37,40,.4) calc(var(--slide-w) - 1px),rgba(37,37,40,.4) var(--slide-w)); }
 .canvas-empty { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:rgba(25,25,27,.42); text-align:center; width:250px; pointer-events:none; }
 .canvas-empty span { display:block; font-family:"Instrument Serif",serif; font-size:32px; color:rgba(25,25,27,.55); }
@@ -313,6 +319,8 @@ h2 { font-size: 21px; margin: 3px 0 0; line-height: 1.1; }
 .canvas-layer.selected { outline:2px solid var(--lilac); outline-offset:0; }
 .canvas-layer.selected::after { content:""; position:absolute; width:14px; height:14px; right:-8px; bottom:-8px; border-radius:50%; background:white; border:3px solid var(--lilac); cursor:nwse-resize; z-index:4; }
 .resize-handle { position:absolute; width:28px; height:28px; right:-15px; bottom:-15px; cursor:nwse-resize; z-index:5; }
+.frame-draft { position:absolute; z-index:999; border:2px solid var(--accent); background:rgba(217,255,99,.14); box-shadow:inset 0 0 0 1px rgba(14,14,16,.35); pointer-events:none; }
+.frame-draft::after { content:"Photo frame"; position:absolute; left:8px; top:8px; padding:4px 6px; border-radius:5px; background:rgba(14,14,16,.84); color:var(--accent); font-size:9px; font-weight:700; white-space:nowrap; }
 .hint { display:flex; align-items:center; gap:7px; color:#66666d; font-size:9px; }
 kbd { background:#242428; border:1px solid rgba(255,255,255,.11); border-radius:4px; color:#99999f; padding:2px 5px; font-family:inherit; }
 .fit-button { display:flex; gap:7px; align-items:center; border:0; background:transparent; color:var(--muted); font-size:10px; cursor:pointer; }
@@ -434,6 +442,8 @@ dialog::backdrop { background:rgba(4,4,5,.72); backdrop-filter:blur(8px); }
   .template-card { min-width:110px; }
   .stage-area { height:calc(100vh - 126px); grid-template-rows:50px 1fr 42px; }
   .stage-toolbar { padding:0 10px; }
+  .frame-tool-button { width:34px; padding:0; justify-content:center; }
+  .frame-tool-button span { display:none; }
   .zoom-control { display:none; }
   .canvas-wrap { padding:40px; }
   .hint { display:none; }
