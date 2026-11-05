@@ -51,7 +51,7 @@ To create Apple Silicon DMG and ZIP installers:
 npm run desktop:build
 ```
 
-The downloadable build is unsigned. On first launch, macOS may require **Control-click → Open** from Finder.
+The downloadable build is ad-hoc signed but not Apple-notarized. On first launch, macOS may require **Control-click → Open** from Finder.
 
 ## Deploy on GitHub Pages
 
