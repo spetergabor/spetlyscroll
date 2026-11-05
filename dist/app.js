@@ -46,12 +46,23 @@
   let databasePromise = null;
   let mediaDirty = false;
   let saveChain = Promise.resolve();
+  const imageCache = new Map();
 
   const artboard = $("#artboard");
   const rightPanel = $(".right-panel");
 
   function uid() {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  const isVisualLayer = (layer) => layer && (layer.type === "image" || layer.type === "video");
+  const mediaKind = (item) => item?.type === "video" ? "video" : "image";
+
+  function runtimeMediaItem(item) {
+    if (!item) return item;
+    const type = item.type || (item.mime?.startsWith("video/") ? "video" : "image");
+    if (item.blob instanceof Blob) return { ...item, type, src:URL.createObjectURL(item.blob) };
+    return { ...item, type };
   }
 
   function projectData() {
@@ -137,7 +148,7 @@
 
   function migrateTemplatePhotoDefaults() {
     if ((state.templateDefaultsVersion || 0) >= 2) return false;
-    const slots = state.layers.filter((layer) => layer.type === "image" && layer.templateSlot).sort((a,b) => a.z - b.z);
+    const slots = state.layers.filter((layer) => isVisualLayer(layer) && layer.templateSlot).sort((a,b) => a.z - b.z);
     slots.forEach((layer) => { layer.radius = 0; layer.fit = "cover"; });
     const { w, h } = RATIO_SIZES[state.ratio] || RATIO_SIZES["4:5"];
     if (state.activeTemplate === "seasonal-edit" && slots.length >= 2) {
@@ -187,7 +198,7 @@
 
   function hydrateProject(record, storedMedia = []) {
     if (!record) return null;
-    const media = (storedMedia.length ? storedMedia : (record.media || [])).map(({projectId, ...item}) => item);
+    const media = (storedMedia.length ? storedMedia : (record.media || [])).map(({projectId, ...item}) => runtimeMediaItem(item));
     const mediaById = new Map(media.map((item) => [item.id, item]));
     const mediaBySrc = new Map(media.map((item) => [item.src, item]));
     const layers = (record.layers || []).map((layer) => {
@@ -229,7 +240,11 @@
       const transaction = db.transaction(MEDIA_STORE, "readwrite");
       const store = transaction.objectStore(MEDIA_STORE);
       existingKeys.forEach((key) => store.delete(key));
-      (media || []).forEach((item) => store.put({projectId, ...item}));
+      (media || []).forEach((item) => {
+        const stored = {projectId, ...item};
+        if (stored.blob instanceof Blob) delete stored.src;
+        store.put(stored);
+      });
       transaction.oncomplete = resolve;
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);
@@ -391,20 +406,28 @@
         borderRadius: `${layer.radius || 0}px`,
       });
 
-      if (layer.type === "image") {
+      if (isVisualLayer(layer)) {
         const clip = document.createElement("div");
         clip.className = "image-clip";
-        const image = document.createElement("img");
-        image.src = layer.src;
-        image.alt = "";
-        image.draggable = false;
-        image.style.objectFit = layer.fit || "cover";
-        image.style.borderRadius = `${layer.radius || 0}px`;
-        image.style.filter = layer.filter || "none";
-        image.style.objectPosition = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
-        image.style.transformOrigin = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
-        image.style.transform = `scale(${layer.imageScale || 1})`;
-        clip.appendChild(image);
+        const mediaElement = document.createElement(layer.type === "video" ? "video" : "img");
+        mediaElement.src = layer.src;
+        if (layer.type === "video") {
+          mediaElement.muted = true;
+          mediaElement.loop = true;
+          mediaElement.autoplay = true;
+          mediaElement.playsInline = true;
+          mediaElement.preload = "metadata";
+        } else {
+          mediaElement.alt = "";
+          mediaElement.draggable = false;
+        }
+        mediaElement.style.objectFit = layer.fit || "cover";
+        mediaElement.style.borderRadius = `${layer.radius || 0}px`;
+        mediaElement.style.filter = layer.filter || "none";
+        mediaElement.style.objectPosition = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
+        mediaElement.style.transformOrigin = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
+        mediaElement.style.transform = `scale(${layer.imageScale || 1})`;
+        clip.appendChild(mediaElement);
         element.appendChild(clip);
       } else {
         element.textContent = layer.text;
@@ -455,11 +478,14 @@
       row.className = `layer-row${layer.id === state.selectedId ? " selected" : ""}`;
       row.dataset.id = layer.id;
       row.draggable = true;
-      const label = layer.type === "image" ? `Photo ${ordered.filter((item) => item.type === "image").length - ordered.slice(0, index).filter((item) => item.type === "image").length}` : (layer.text || "Text").replace(/\n/g, " ");
+      const visualCount = ordered.filter(isVisualLayer).length;
+      const visualIndex = visualCount - ordered.slice(0, index).filter(isVisualLayer).length;
+      const label = layer.type === "video" ? `Video ${visualIndex}` : layer.type === "image" ? `Photo ${visualIndex}` : (layer.text || "Text").replace(/\n/g, " ");
+      const visualThumb = layer.type === "video" ? (layer.poster || "") : layer.src;
       row.innerHTML = `
         <span class="layer-drag" title="Drag to reorder">⠿</span>
-        <span class="layer-thumb">${layer.type === "image" ? `<img src="${layer.src}" alt="" />` : "Aa"}</span>
-        <span class="layer-meta"><b>${escapeHtml(label)}</b><small>${layer.type === "image" ? "Photo" : "Text"}${layer.locked ? " · Locked" : ""}</small></span>
+        <span class="layer-thumb">${isVisualLayer(layer) ? `<img src="${visualThumb}" alt="" />${layer.type === "video" ? "<i>▶</i>" : ""}` : "Aa"}</span>
+        <span class="layer-meta"><b>${escapeHtml(label)}</b><small>${layer.type === "video" ? "Video" : layer.type === "image" ? "Photo" : "Text"}${layer.locked ? " · Locked" : ""}</small></span>
         <button class="layer-toggle visibility-toggle${layer.hidden ? "" : " active"}" aria-label="${layer.hidden ? "Show" : "Hide"} layer"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
         <button class="layer-toggle lock-toggle${layer.locked ? " active" : ""}" aria-label="${layer.locked ? "Unlock" : "Lock"} layer"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button>`;
       row.addEventListener("click", () => selectLayer(layer.id));
@@ -518,8 +544,10 @@
     const layers = (project.layers || []).filter((layer) => !layer.hidden && layer.x < info.w && layer.x + layer.w > 0).sort((a,b) => a.z - b.z);
     const layerMarkup = layers.map((layer) => {
       const baseStyle = `left:${layer.x / info.w * 100}%;top:${layer.y / info.h * 100}%;width:${layer.w / info.w * 100}%;height:${layer.h / info.h * 100}%;z-index:${layer.z};opacity:${layer.opacity ?? 1};transform:rotate(${layer.rotation || 0}deg);border-radius:${Math.max(0,(layer.radius || 0) / info.w * 100)}%;`;
-      if (layer.type === "image") {
-        return `<span class="project-mini-layer" style="${baseStyle}"><img src="${layer.src}" alt="" style="object-position:${layer.focusX ?? 50}% ${layer.focusY ?? 50}%;transform:scale(${layer.imageScale || 1});filter:${layer.filter || "none"}" /></span>`;
+      if (isVisualLayer(layer)) {
+        const media = (project.media || []).find((item) => item.id === layer.mediaId);
+        const source = layer.type === "video" ? (layer.poster || media?.poster || "") : layer.src;
+        return `<span class="project-mini-layer" style="${baseStyle}"><img src="${source}" alt="" style="object-position:${layer.focusX ?? 50}% ${layer.focusY ?? 50}%;transform:scale(${layer.imageScale || 1});filter:${layer.filter || "none"}" />${layer.type === "video" ? '<i class="project-video-badge">▶</i>' : ''}</span>`;
       }
       return `<span class="project-mini-layer project-mini-text" style="${baseStyle}font-family:${layer.fontFamily || "sans-serif"};font-size:${Math.max(4,Math.min(18,(layer.fontSize || 20) / 5))}px;font-weight:${layer.fontWeight || 400};color:${layer.color || "#171719"};text-align:${layer.align || "left"}">${escapeHtml(layer.text || "")}</span>`;
     }).join("");
@@ -546,13 +574,38 @@
     return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || fallback;
   }
 
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
   async function exportProjectBackup(projectId = state.projectId) {
     if (projectId === state.projectId) await saveProjectNow();
     const project = await getProject(projectId);
     if (!project) return showToast("Project backup could not be created");
-    const payload = { format:"spetlyscroll-project", version:1, exportedAt:Date.now(), project };
+    const backupProject = snapshotProjectForBackup(project);
+    for (const item of backupProject.media) {
+      if (item.blob instanceof Blob) {
+        item.src = await blobToDataUrl(item.blob);
+        delete item.blob;
+      }
+    }
+    const payload = { format:"spetlyscroll-project", version:2, exportedAt:Date.now(), project:backupProject };
     downloadBlob(new Blob([JSON.stringify(payload)], {type:"application/json"}), `${safeFilename(project.title)}.spetlyscroll`);
     showToast("Project backup downloaded");
+  }
+
+  function snapshotProjectForBackup(project) {
+    return {
+      ...project,
+      slideBackgrounds:[...(project.slideBackgrounds || [])],
+      layers:(project.layers || []).map((layer) => ({...layer})),
+      media:(project.media || []).map((item) => ({...item})),
+    };
   }
 
   async function importProjectBackup(file) {
@@ -691,10 +744,10 @@
     saveProjectNow();
   }
 
-  function addImage(src, naturalW = 1200, naturalH = 900, placement = null, mediaId = null) {
+  function addMediaLayer(item, placement = null) {
     pushHistory();
     const { w, h } = ratioInfo();
-    const aspect = naturalW / naturalH;
+    const aspect = (item.w || 1200) / (item.h || 900);
     let width = Math.min(w * 1.35, 650);
     let height = width / aspect;
     if (height > h * .85) { height = h * .85; width = height * aspect; }
@@ -702,7 +755,7 @@
     const x = placement ? Math.max(0, Math.min(totalWidth - width, placement.x - width / 2)) : Math.max(24, (totalWidth - width) / 2);
     const y = placement ? Math.max(0, Math.min(h - height, placement.y - height / 2)) : (h - height) / 2;
     const layer = {
-      id: uid(), type: "image", src, mediaId,
+      id: uid(), type: mediaKind(item), src:item.src, mediaId:item.id || null, poster:item.poster || null,
       x, y,
       w: width, h: height, z: nextZ(), opacity: 1, radius: 0, fit: "cover", rotation: 0,
       imageScale:1, focusX:50, focusY:50, hidden:false, locked:false,
@@ -711,6 +764,10 @@
     state.selectedId = layer.id;
     renderLayers();
     scheduleSave();
+  }
+
+  function addImage(src, naturalW = 1200, naturalH = 900, placement = null, mediaId = null) {
+    addMediaLayer({id:mediaId, type:"image", src, w:naturalW, h:naturalH}, placement);
   }
 
   function addText(style = "display") {
@@ -769,8 +826,8 @@
     $("#propertiesPanel").classList.toggle("hidden", !layer);
     rightPanel.classList.toggle("has-selection", !!layer);
     if (!layer) return;
-    $("#layerType").textContent = layer.type === "image" ? "Photo" : "Text";
-    $("#imageProperties").classList.toggle("hidden", layer.type !== "image");
+    $("#layerType").textContent = layer.type === "video" ? "Video" : layer.type === "image" ? "Photo" : "Text";
+    $("#imageProperties").classList.toggle("hidden", !isVisualLayer(layer));
     $("#textProperties").classList.toggle("hidden", layer.type !== "text");
     $("#geometryX").value = Math.round(layer.x * 10) / 10;
     $("#geometryY").value = Math.round(layer.y * 10) / 10;
@@ -779,7 +836,7 @@
     $("#geometryRotation").value = Math.round((layer.rotation || 0) * 10) / 10;
     $("#opacityRange").value = Math.round((layer.opacity ?? 1) * 100);
     $("#opacityValue").textContent = `${$("#opacityRange").value}%`;
-    if (layer.type === "image") {
+    if (isVisualLayer(layer)) {
       $("#radiusRange").value = layer.radius || 0;
       $("#radiusValue").textContent = layer.radius || 0;
       $("#imageZoomRange").value = Math.round((layer.imageScale || 1) * 100);
@@ -811,16 +868,16 @@
       zIndex:layer.z, opacity:layer.opacity ?? 1, transform:`rotate(${layer.rotation || 0}deg)`,
       borderRadius:`${layer.radius || 0}px`,
     });
-    if (layer.type === "image") {
-      const image = $("img", element);
-      if (image) {
-        if (image.src !== layer.src) image.src = layer.src;
-        image.style.objectFit = layer.fit || "cover";
-        image.style.borderRadius = `${layer.radius || 0}px`;
-        image.style.objectPosition = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
-        image.style.transformOrigin = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
-        image.style.transform = `scale(${layer.imageScale || 1})`;
-        image.style.filter = layer.filter || "none";
+    if (isVisualLayer(layer)) {
+      const mediaElement = $("img,video", element);
+      if (mediaElement) {
+        if (mediaElement.src !== layer.src) mediaElement.src = layer.src;
+        mediaElement.style.objectFit = layer.fit || "cover";
+        mediaElement.style.borderRadius = `${layer.radius || 0}px`;
+        mediaElement.style.objectPosition = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
+        mediaElement.style.transformOrigin = `${layer.focusX ?? 50}% ${layer.focusY ?? 50}%`;
+        mediaElement.style.transform = `scale(${layer.imageScale || 1})`;
+        mediaElement.style.filter = layer.filter || "none";
       }
     } else {
       const textNode = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
@@ -860,12 +917,12 @@
       const wrapper = document.createElement("div");
       wrapper.className = "media-item";
       const button = document.createElement("button");
-      button.className = "media-thumb";
+      button.className = `media-thumb${mediaKind(item) === "video" ? " video-media" : ""}`;
       button.draggable = true;
-      button.title = "Drag into a photo frame or click to add";
-      button.setAttribute("aria-label", "Add uploaded photo to canvas");
-      button.innerHTML = `<img src="${item.src}" alt="Uploaded photo" />`;
-      button.addEventListener("click", () => addImage(item.src, item.w, item.h, null, item.id));
+      button.title = "Drag into a frame or click to add";
+      button.setAttribute("aria-label", `Add uploaded ${mediaKind(item)} to canvas`);
+      button.innerHTML = `<img src="${item.poster || item.src}" alt="Uploaded ${mediaKind(item)}" />${mediaKind(item) === "video" ? `<span class="media-duration">${formatDuration(item.duration)}</span>` : ""}`;
+      button.addEventListener("click", () => addMediaLayer(item));
       button.addEventListener("dragstart", (event) => {
         if (state.frameDrawMode) setFrameDrawMode(false, false);
         event.dataTransfer.effectAllowed = "copy";
@@ -881,28 +938,36 @@
       remove.className = "media-delete";
       remove.type = "button";
       remove.title = "Remove from Media";
-      remove.setAttribute("aria-label", "Remove photo from Media");
+      remove.setAttribute("aria-label", "Remove item from Media");
       remove.textContent = "×";
       remove.addEventListener("click", (event) => {
         event.stopPropagation();
         state.layers.forEach((layer) => { if (layer.mediaId === item.id) layer.mediaId = null; });
         state.media = state.media.filter((media) => media.id !== item.id);
+        if (item.blob instanceof Blob && item.src?.startsWith("blob:")) URL.revokeObjectURL(item.src);
         mediaDirty = true;
         renderMedia();
         scheduleSave();
-        showToast("Photo removed from Media · canvas copies stay in place");
+        showToast("Media removed · canvas copies stay in place");
       });
       wrapper.append(button, remove);
       grid.appendChild(wrapper);
     });
   }
 
-  function replacePhotoInLayer(layer, item) {
+  function formatDuration(seconds) {
+    if (!Number.isFinite(seconds)) return "0:00";
+    return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+  }
+
+  function replaceMediaInLayer(layer, item) {
     if (!layer) return false;
-    if (layer.locked) { showToast("Unlock this layer to replace its photo"); return false; }
+    if (layer.locked) { showToast("Unlock this layer to replace its media"); return false; }
     pushHistory();
+    layer.type = mediaKind(item);
     layer.src = item.src;
     layer.mediaId = item.id;
+    layer.poster = item.poster || null;
     layer.fit = "cover";
     layer.imageScale = 1;
     layer.focusX = 50;
@@ -911,40 +976,83 @@
     state.cropModeId = null;
     renderLayers();
     scheduleSave();
-    showToast("Photo placed in frame");
+    showToast(`${layer.type === "video" ? "Video" : "Photo"} placed in frame`);
     return true;
   }
 
-  function handleFiles(files, targetLayerId = null, placement = null, placeOnCanvas = false) {
-    const imageFiles = [...files].filter((file) => file.type.startsWith("image/"));
-    let loadedCount = 0;
-    imageFiles.forEach((file, index) => {
+  function isSupportedMediaFile(file) {
+    return file.type.startsWith("image/") || file.type.startsWith("video/") || /\.(mp4|mov|m4v)$/i.test(file.name || "");
+  }
+
+  function readImageFile(file) {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const image = new Image();
         image.onload = () => {
-          const item = { id: uid(), src: reader.result, w: image.naturalWidth, h: image.naturalHeight };
-          state.media.push(item);
-          mediaDirty = true;
-          renderMedia();
-          const targetLayer = index === 0 && targetLayerId ? state.layers.find((layer) => layer.id === targetLayerId) : null;
-          if (targetLayer) {
-            replacePhotoInLayer(targetLayer, item);
-          } else if (placeOnCanvas) {
-            const offsetPlacement = placement ? { x:placement.x + index * 24, y:placement.y + index * 24 } : null;
-            addImage(item.src, item.w, item.h, offsetPlacement, item.id);
-          } else {
-            scheduleSave();
-          }
-          loadedCount++;
-          if (!targetLayer && !placeOnCanvas && loadedCount === imageFiles.length) {
-            showToast(`${imageFiles.length} ${imageFiles.length === 1 ? "photo" : "photos"} added to Media`);
-          }
+          resolve({ id:uid(), type:"image", src:reader.result, w:image.naturalWidth, h:image.naturalHeight, mime:file.type, name:file.name, size:file.size });
         };
+        image.onerror = reject;
         image.src = reader.result;
       };
+      reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  }
+
+  function readVideoFile(file) {
+    return new Promise((resolve, reject) => {
+      const src = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = "auto";
+      video.onerror = () => { URL.revokeObjectURL(src); reject(new Error(`Could not read ${file.name}`)); };
+      video.onloadeddata = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const thumbW = 480;
+          const thumbH = Math.max(1, Math.round(thumbW * video.videoHeight / video.videoWidth));
+          canvas.width = thumbW;
+          canvas.height = thumbH;
+          canvas.getContext("2d").drawImage(video, 0, 0, thumbW, thumbH);
+          resolve({
+            id:uid(), type:"video", src, blob:file, poster:canvas.toDataURL("image/jpeg", .82),
+            w:video.videoWidth, h:video.videoHeight, duration:video.duration, mime:file.type || "video/mp4",
+            name:file.name, size:file.size,
+          });
+        } catch (error) { URL.revokeObjectURL(src); reject(error); }
+      };
+      video.src = src;
+    });
+  }
+
+  async function handleFiles(files, targetLayerId = null, placement = null, placeOnCanvas = false) {
+    const mediaFiles = [...files].filter(isSupportedMediaFile);
+    if (!mediaFiles.length) return showToast("Choose a photo or video file");
+    let loadedCount = 0;
+    for (let index = 0; index < mediaFiles.length; index++) {
+      const file = mediaFiles[index];
+      try {
+        const item = file.type.startsWith("video/") || /\.(mp4|mov|m4v)$/i.test(file.name || "")
+          ? await readVideoFile(file)
+          : await readImageFile(file);
+        state.media.push(item);
+        mediaDirty = true;
+        renderMedia();
+        const targetLayer = index === 0 && targetLayerId ? state.layers.find((layer) => layer.id === targetLayerId) : null;
+        if (targetLayer) replaceMediaInLayer(targetLayer, item);
+        else if (placeOnCanvas) {
+          const offsetPlacement = placement ? { x:placement.x + index * 24, y:placement.y + index * 24 } : null;
+          addMediaLayer(item, offsetPlacement);
+        } else scheduleSave();
+        loadedCount++;
+      } catch (error) {
+        console.error(error);
+        showToast(`Could not add ${file.name}`);
+      }
+    }
+    if (!targetLayerId && !placeOnCanvas && loadedCount) showToast(`${loadedCount} media ${loadedCount === 1 ? "item" : "items"} added to Media`);
   }
 
   function switchPanel(name) {
@@ -1449,7 +1557,7 @@
     pushHistory();
     drag = {
       id,
-      mode: state.cropModeId === id && layer.type === "image" ? "image-pan" : (event.target.dataset.resize ? "resize" : "move"),
+      mode: state.cropModeId === id && isVisualLayer(layer) ? "image-pan" : (event.target.dataset.resize ? "resize" : "move"),
       startX: event.clientX,
       startY: event.clientY,
       x: layer.x, y: layer.y, w: layer.w, h: layer.h,
@@ -1496,12 +1604,12 @@
     } else {
       let newW = Math.max(45, drag.w + dx);
       let newH = Math.max(35, drag.h + dy);
-      if (event.shiftKey || (layer.type === "image" && !layer.userFrame)) newH = newW / drag.aspect;
+      if (event.shiftKey || (isVisualLayer(layer) && !layer.userFrame)) newH = newW / drag.aspect;
       const targets = snapTargets(layer.id);
       const rightMatch = closestSnap([{value:layer.x + newW}], targets.x);
       const bottomMatch = closestSnap([{value:layer.y + newH}], targets.y);
       if (rightMatch) newW = Math.max(45, newW + rightMatch.delta);
-      if (bottomMatch && !(event.shiftKey || (layer.type === "image" && !layer.userFrame))) newH = Math.max(35, newH + bottomMatch.delta);
+      if (bottomMatch && !(event.shiftKey || (isVisualLayer(layer) && !layer.userFrame))) newH = Math.max(35, newH + bottomMatch.delta);
       showSnapGuides(rightMatch ? [rightMatch.guide] : [], bottomMatch ? [bottomMatch.guide] : []);
       layer.w = newW;
       layer.h = newH;
@@ -1546,7 +1654,7 @@
     updateHistoryButtons();
   }
 
-  async function drawLayer(ctx, layer, offsetX, scale) {
+  async function drawLayer(ctx, layer, offsetX, scale, activeVideo = null) {
     ctx.save();
     ctx.globalAlpha = layer.opacity ?? 1;
     const centerX = (layer.x - offsetX + layer.w / 2) * scale;
@@ -1558,12 +1666,17 @@
     const w = layer.w * scale;
     const h = layer.h * scale;
 
-    if (layer.type === "image") {
-      const image = await loadImage(layer.src);
+    if (isVisualLayer(layer)) {
+      const visual = layer.type === "video"
+        ? (activeVideo?.layerId === layer.id ? activeVideo.sample : (layer.poster ? await loadImage(layer.poster) : null))
+        : await loadImage(layer.src);
+      if (!visual) { ctx.restore(); return; }
       roundedRect(ctx, x, y, w, h, (layer.radius || 0) * scale);
       ctx.clip();
       ctx.filter = layer.filter || "none";
-      const imageAspect = image.naturalWidth / image.naturalHeight;
+      const sourceWidth = visual.displayWidth || visual.naturalWidth || visual.videoWidth;
+      const sourceHeight = visual.displayHeight || visual.naturalHeight || visual.videoHeight;
+      const imageAspect = sourceWidth / sourceHeight;
       const boxAspect = layer.w / layer.h;
       let drawW, drawH;
       if ((layer.fit || "cover") === "contain") {
@@ -1578,7 +1691,8 @@
       const focusY = (layer.focusY ?? 50) / 100;
       const drawX = drawW >= w ? x - (drawW - w) * focusX : x + (w - drawW) / 2;
       const drawY = drawH >= h ? y - (drawH - h) * focusY : y + (h - drawH) / 2;
-      ctx.drawImage(image, drawX, drawY, drawW, drawH);
+      if (typeof visual.draw === "function") visual.draw(ctx, 0, 0, sourceWidth, sourceHeight, drawX, drawY, drawW, drawH);
+      else ctx.drawImage(visual, drawX, drawY, drawW, drawH);
     } else {
       const fontFamily = layer.fontFamily || "'DM Sans', sans-serif";
       ctx.font = `${layer.fontWeight || 400} ${layer.fontSize * scale}px ${fontFamily}`;
@@ -1615,12 +1729,26 @@
   }
 
   function loadImage(src) {
-    return new Promise((resolve, reject) => {
+    if (imageCache.has(src)) return imageCache.get(src);
+    const pending = new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
-      image.onerror = reject;
+      image.onerror = () => { imageCache.delete(src); reject(new Error("Image could not be loaded")); };
       image.src = src;
     });
+    imageCache.set(src, pending);
+    return pending;
+  }
+
+  async function renderSlideIntoContext(ctx, index, outW, outH, activeVideo = null) {
+    const info = ratioInfo();
+    ctx.clearRect(0, 0, outW, outH);
+    ctx.fillStyle = backgroundColorForSlide(index);
+    ctx.fillRect(0, 0, outW, outH);
+    const scale = outW / info.w;
+    const offset = index * info.w;
+    const ordered = [...state.layers].filter((layer) => !layer.hidden).sort((a,b) => a.z-b.z);
+    for (const layer of ordered) await drawLayer(ctx, layer, offset, scale, activeVideo);
   }
 
   async function renderSlide(index, preview = false) {
@@ -1632,13 +1760,45 @@
     canvas.width = outW;
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = backgroundColorForSlide(index);
-    ctx.fillRect(0, 0, outW, outH);
-    const scale = outW / info.w;
-    const offset = index * info.w;
-    const ordered = [...state.layers].filter((layer) => !layer.hidden).sort((a,b) => a.z-b.z);
-    for (const layer of ordered) await drawLayer(ctx, layer, offset, scale);
+    await renderSlideIntoContext(ctx, index, outW, outH);
     return canvas;
+  }
+
+  function videoLayersForSlide(index) {
+    const { w, h } = ratioInfo();
+    const left = index * w;
+    const right = left + w;
+    return state.layers.filter((layer) => layer.type === "video" && !layer.hidden && layer.opacity !== 0
+      && layer.x < right && layer.x + layer.w > left && layer.y < h && layer.y + layer.h > 0);
+  }
+
+  async function sourceBlobForLayer(layer) {
+    const media = state.media.find((item) => item.id === layer.mediaId);
+    if (media?.blob instanceof Blob) return media.blob;
+    const response = await fetch(layer.src);
+    if (!response.ok) throw new Error("Video source is unavailable");
+    return response.blob();
+  }
+
+  async function renderVideoSlide(index, layer, onProgress) {
+    if (!window.SpetlyVideo?.transcodeToInstagramMp4) throw new Error("Video export engine is unavailable");
+    await document.fonts.ready;
+    const info = ratioInfo();
+    const canvas = document.createElement("canvas");
+    canvas.width = info.exportW;
+    canvas.height = info.exportH;
+    const ctx = canvas.getContext("2d", { alpha:false });
+    const sourceBlob = await sourceBlobForLayer(layer);
+    return window.SpetlyVideo.transcodeToInstagramMp4({
+      blob:sourceBlob,
+      width:info.exportW,
+      height:info.exportH,
+      onProgress,
+      renderFrame:async (sample) => {
+        await renderSlideIntoContext(ctx, index, info.exportW, info.exportH, {layerId:layer.id, sample});
+        return canvas;
+      },
+    });
   }
 
   async function openPreview() {
@@ -1659,10 +1819,12 @@
   }
 
   function openExport() {
+    const videoSlideCount = Array.from({length:state.slides}, (_, index) => videoLayersForSlide(index).length > 0).filter(Boolean).length;
     $("#exportSummaryTitle").textContent = `${state.slides} high-quality ${state.slides === 1 ? "slide" : "slides"}`;
     $("#exportStack").innerHTML = Array.from({length:Math.min(state.slides,4)}, (_,i) => `<i style="--rotate:${(i-(state.slides-1)/2)*5}deg"></i>`).join("");
     $("#exportAsZip").closest(".zip-option").classList.toggle("hidden", state.slides === 1);
     $("#confirmExport span").textContent = state.slides === 1 ? "Download slide" : "Download all slides";
+    $("#videoExportNote").classList.toggle("hidden", videoSlideCount === 0);
     $("#exportDialog").showModal();
   }
 
@@ -1675,22 +1837,44 @@
     const zip = zipEnabled ? new JSZip() : null;
     const safeTitle = safeFilename(state.title, "carousel");
     button.disabled = true;
-    for (let i = 0; i < state.slides; i++) {
-      button.querySelector("span").textContent = `Rendering ${i+1} of ${state.slides}…`;
-      const canvas = await renderSlide(i);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, `image/${format}`, quality));
-      const filename = `${safeTitle}-${String(i+1).padStart(2,"0")}.${format === "jpeg" ? "jpg" : "png"}`;
-      if (zip) zip.file(filename, blob);
-      else downloadBlob(blob, filename);
+    let mutedVideo = false;
+    try {
+      for (let i = 0; i < state.slides; i++) {
+        const videoLayers = videoLayersForSlide(i);
+        if (videoLayers.length > 1) throw new Error(`Slide ${i + 1} contains more than one video. Keep one video per slide for Instagram export.`);
+        let blob;
+        let extension;
+        if (videoLayers.length === 1) {
+          button.querySelector("span").textContent = `Encoding video ${i+1} of ${state.slides}…`;
+          const result = await renderVideoSlide(i, videoLayers[0], (progress) => {
+            button.querySelector("span").textContent = `Encoding slide ${i+1} · ${Math.round(progress * 100)}%`;
+          });
+          blob = result.blob;
+          mutedVideo ||= result.muted;
+          extension = "mp4";
+        } else {
+          button.querySelector("span").textContent = `Rendering ${i+1} of ${state.slides}…`;
+          const canvas = await renderSlide(i);
+          blob = await new Promise((resolve) => canvas.toBlob(resolve, `image/${format}`, quality));
+          extension = format === "jpeg" ? "jpg" : "png";
+        }
+        const filename = `${safeTitle}-${String(i+1).padStart(2,"0")}.${extension}`;
+        if (zip) zip.file(filename, blob);
+        else downloadBlob(blob, filename);
+      }
+      if (zip) {
+        button.querySelector("span").textContent = "Packing ZIP…";
+        downloadBlob(await zip.generateAsync({type:"blob", compression:"STORE"}), `${safeTitle}.zip`);
+      }
+      $("#exportDialog").close();
+      showToast(mutedVideo ? "Export complete · video audio was not supported by this browser" : "Carousel exported in Instagram posting order");
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || "Video export failed");
+    } finally {
+      button.innerHTML = original;
+      button.disabled = false;
     }
-    if (zip) {
-      button.querySelector("span").textContent = "Packing ZIP…";
-      downloadBlob(await zip.generateAsync({type:"blob", compression:"DEFLATE", compressionOptions:{level:6}}), `${safeTitle}.zip`);
-    }
-    button.innerHTML = original;
-    button.disabled = false;
-    $("#exportDialog").close();
-    showToast(zip ? `${state.slides} slides exported as one ZIP` : `${state.slides} ${state.slides === 1 ? "slide" : "slides"} exported in posting order`);
   }
 
   function showToast(message) {
@@ -1702,7 +1886,7 @@
   }
 
   function photoFrameAtPoint(clientX, clientY) {
-    return [...artboard.querySelectorAll(".canvas-layer.image-layer")].reverse().find((element) => {
+    return [...artboard.querySelectorAll(".canvas-layer:is(.image-layer,.video-layer)")].reverse().find((element) => {
       const rect = element.getBoundingClientRect();
       return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
     }) || null;
@@ -1756,14 +1940,14 @@
     $("#redoButton").addEventListener("click", redo);
     artboard.addEventListener("pointerdown", pointerStart);
     artboard.addEventListener("dblclick", (event) => {
-      const element = event.target.closest(".image-layer");
+      const element = event.target.closest(".image-layer,.video-layer");
       if (!element) return;
       const layer = state.layers.find((item) => item.id === element.dataset.id);
       if (!layer || layer.locked) return;
       state.selectedId = layer.id;
       state.cropModeId = state.cropModeId === layer.id ? null : layer.id;
       renderLayers();
-      showToast(state.cropModeId ? "Drag the photo to reposition it" : "Photo position saved");
+      showToast(state.cropModeId ? "Drag the media to reposition it" : "Media position saved");
     });
     const isPhotoDrag = (event) => {
       const types = [...event.dataTransfer.types];
@@ -1784,25 +1968,25 @@
       event.dataTransfer.dropEffect = "copy";
       $("#dropOverlay").classList.remove("show");
       artboard.classList.add("media-drop-target");
-      $$(".image-layer.drop-slot", artboard).forEach((slot) => slot.classList.remove("drop-slot"));
-      const slot = event.target.closest(".image-layer") || photoFrameAtPoint(event.clientX, event.clientY);
+      $$(".image-layer.drop-slot,.video-layer.drop-slot", artboard).forEach((slot) => slot.classList.remove("drop-slot"));
+      const slot = event.target.closest(".image-layer,.video-layer") || photoFrameAtPoint(event.clientX, event.clientY);
       if (slot) slot.classList.add("drop-slot");
     });
     artboard.addEventListener("dragleave", (event) => {
       if (event.relatedTarget && artboard.contains(event.relatedTarget)) return;
       artboard.classList.remove("media-drop-target");
-      $$(".image-layer.drop-slot", artboard).forEach((slot) => slot.classList.remove("drop-slot"));
+      $$(".image-layer.drop-slot,.video-layer.drop-slot", artboard).forEach((slot) => slot.classList.remove("drop-slot"));
     });
     artboard.addEventListener("drop", (event) => {
       const mediaId = event.dataTransfer.getData("application/x-seam-media");
-      const imageFiles = [...event.dataTransfer.files].filter((file) => file.type.startsWith("image/"));
-      if (!mediaId && !imageFiles.length) return;
+      const mediaFiles = [...event.dataTransfer.files].filter(isSupportedMediaFile);
+      if (!mediaId && !mediaFiles.length) return;
       event.preventDefault();
       event.stopPropagation();
       artboard.classList.remove("media-drop-target");
-      $$(".image-layer.drop-slot", artboard).forEach((slot) => slot.classList.remove("drop-slot"));
+      $$(".image-layer.drop-slot,.video-layer.drop-slot", artboard).forEach((slot) => slot.classList.remove("drop-slot"));
       $("#dropOverlay").classList.remove("show");
-      const slotElement = event.target.closest(".image-layer") || photoFrameAtPoint(event.clientX, event.clientY);
+      const slotElement = event.target.closest(".image-layer,.video-layer") || photoFrameAtPoint(event.clientX, event.clientY);
       const rect = artboard.getBoundingClientRect();
       const scaleX = rect.width / (ratioInfo().w * state.slides);
       const scaleY = rect.height / ratioInfo().h;
@@ -1810,8 +1994,8 @@
         x: (event.clientX - rect.left) / scaleX,
         y: (event.clientY - rect.top) / scaleY,
       };
-      if (imageFiles.length) {
-        handleFiles(imageFiles, slotElement?.dataset.id || null, placement, true);
+      if (mediaFiles.length) {
+        handleFiles(mediaFiles, slotElement?.dataset.id || null, placement, true);
         return;
       }
       const item = state.media.find((media) => media.id === mediaId);
@@ -1819,12 +2003,12 @@
       if (slotElement) {
         const layer = state.layers.find((candidate) => candidate.id === slotElement.dataset.id);
         if (layer) {
-          replacePhotoInLayer(layer, item);
+          replaceMediaInLayer(layer, item);
           return;
         }
       }
-      addImage(item.src, item.w, item.h, placement, item.id);
-      showToast("Photo added where you dropped it");
+      addMediaLayer(item, placement);
+      showToast(`${mediaKind(item) === "video" ? "Video" : "Photo"} added where you dropped it`);
     });
     $("#deleteLayer").addEventListener("click", deleteSelected);
     $("#closeProperties").addEventListener("click", () => { state.selectedId=null; state.cropModeId=null; renderLayers(); });
@@ -1846,10 +2030,10 @@
     $("#imageFocusYRange").addEventListener("input", (event) => mutateSelected((layer) => layer.focusY=Number(event.target.value)));
     $("#repositionImage").addEventListener("click", () => {
       const layer = selectedLayer();
-      if (!layer || layer.type !== "image" || layer.locked) return;
+      if (!isVisualLayer(layer) || layer.locked) return;
       state.cropModeId = state.cropModeId === layer.id ? null : layer.id;
       renderLayers();
-      showToast(state.cropModeId ? "Drag the photo inside its frame" : "Photo position saved");
+      showToast(state.cropModeId ? "Drag the media inside its frame" : "Media position saved");
     });
     $$('[data-fit]').forEach((button) => button.addEventListener("click", () => mutateSelected((layer) => layer.fit=button.dataset.fit, true)));
     $("#textContent").addEventListener("input", (event) => mutateSelected((layer) => layer.text=event.target.value));

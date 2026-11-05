@@ -1,18 +1,21 @@
 {
   "name": "spetlyscroll",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "description": "A private desktop carousel studio for seamless social posts.",
   "main": "electron/main.cjs",
   "author": "spetergabor",
   "license": "MIT",
   "scripts": {
+    "build:video": "esbuild vendor-src/video-export.js --bundle --format=iife --target=chrome110,safari16.4 --outfile=assets/vendor/video-export.min.js --minify",
+    "build:web": "npm run build:video && cp index.html styles.css app.js dist/ && mkdir -p dist/assets/vendor && cp assets/vendor/video-export.min.js assets/vendor/MEDIABUNNY-LICENSE.txt dist/assets/vendor/",
     "desktop": "electron .",
     "desktop:icon": "node electron/create-icon.mjs",
-    "desktop:build": "npm run desktop:icon && electron-builder --mac dmg zip --arm64 --publish never"
+    "desktop:build": "npm run build:web && npm run desktop:icon && electron-builder --mac dmg zip --arm64 --publish never"
   },
   "devDependencies": {
     "electron": "45.2.1",
     "electron-builder": "26.18.0",
+    "esbuild": "^0.27.0",
     "sharp": "0.35.5"
   },
   "build": {
@@ -55,6 +58,7 @@
     "artifactName": "Spetlyscroll-${version}-${arch}.${ext}"
   },
   "dependencies": {
-    "jszip": "^3.10.2"
+    "jszip": "^3.10.2",
+    "mediabunny": "^1.62.1"
   }
 }

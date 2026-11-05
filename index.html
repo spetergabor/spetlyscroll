@@ -101,7 +101,7 @@
               <div class="panel-heading">
                 <div><span class="eyebrow">Start a story</span><h2>Layouts</h2></div>
               </div>
-              <p class="panel-copy">Pick a starting rhythm. Drop your photos onto any image slot.</p>
+              <p class="panel-copy">Pick a starting rhythm. Drop photos or videos onto any media slot.</p>
               <div class="template-tabs" id="templateTabs" aria-label="Template type">
                 <button class="active" data-template-group="single">Single post</button>
                 <button data-template-group="carousel">Carousel</button>
@@ -202,16 +202,16 @@
             <div class="tool-panel" id="panel-media">
               <div class="panel-heading"><div><span class="eyebrow">Your library</span><h2>Media</h2></div></div>
               <label class="upload-zone" id="uploadZone">
-                <input type="file" id="mediaInput" accept="image/*" multiple />
+                <input type="file" id="mediaInput" accept="image/*,video/*,.mp4,.mov,.m4v" multiple />
                 <span class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg></span>
-                <b>Upload photos</b>
+                <b>Upload photos or videos</b>
                 <small>or drop here to add to your library</small>
               </label>
               <div class="media-grid" id="mediaGrid"></div>
-              <p class="media-drag-hint" id="mediaDragHint">Drag a photo into any frame to replace its placeholder, or click to add it freely.</p>
+              <p class="media-drag-hint" id="mediaDragHint">Drag a photo or video into any frame, or click to add it freely.</p>
               <div class="privacy-note">
                 <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-                <span>Your photos never leave this browser.</span>
+                <span>Your media never leaves this browser.</span>
               </div>
             </div>
 
@@ -306,7 +306,7 @@
           <div id="propertiesEmpty" class="properties-empty">
             <div class="empty-orbit"><span></span><i></i></div>
             <h3>Select a layer</h3>
-            <p>Click any photo or text on the canvas to fine-tune it here.</p>
+            <p>Click any photo, video or text on the canvas to fine-tune it here.</p>
           </div>
           <div id="propertiesPanel" class="properties-panel hidden">
             <div class="properties-heading"><div><span class="eyebrow">Selected layer</span><h2 id="layerType">Photo</h2></div><div class="property-heading-actions"><button id="deleteLayer" class="icon-button danger" aria-label="Delete layer"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></svg></button><button id="closeProperties" class="icon-button property-close" aria-label="Close properties">×</button></div></div>
@@ -371,7 +371,7 @@
       </main>
     </div>
 
-    <div class="drop-overlay" id="dropOverlay"><div><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg><b>Drop to add photos to Media</b></div></div>
+    <div class="drop-overlay" id="dropOverlay"><div><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg><b>Drop to add photos or videos</b></div></div>
 
     <dialog id="previewDialog" class="preview-dialog">
       <div class="dialog-top"><div><span class="eyebrow">Swipe preview</span><h2>Your carousel</h2></div><button class="close-button" data-close-dialog aria-label="Close">×</button></div>
@@ -382,6 +382,7 @@
     <dialog id="exportDialog" class="export-dialog">
       <div class="dialog-top"><div><span class="eyebrow">Ready to post</span><h2>Export carousel</h2></div><button class="close-button" data-close-dialog aria-label="Close">×</button></div>
       <div class="export-summary"><div class="export-stack" id="exportStack"></div><div><b id="exportSummaryTitle">3 high-quality slides</b><p>Images are rendered locally and downloaded in posting order.</p></div></div>
+      <div class="video-export-note hidden" id="videoExportNote"><b>Instagram-ready video slides</b><span>Video frames, crop and overlays are rendered locally to MP4 (H.264/AAC). Export can take a little longer.</span></div>
       <label class="field-label">File type<select id="exportFormat"><option value="png">PNG — best quality</option><option value="jpeg">JPEG — smaller files</option></select></label>
       <label class="field-label">Quality <span id="exportQualityValue">92%</span><input id="exportQuality" type="range" min="60" max="100" value="92" /></label>
       <label class="zip-option"><input id="exportAsZip" type="checkbox" checked /><span><b>Download as one ZIP</b><small>All slides stay together and keep their posting order.</small></span></label>
@@ -391,6 +392,7 @@
 
     <div class="toast" id="toast" role="status"></div>
     <script src="assets/vendor/jszip.min.js"></script>
+    <script src="assets/vendor/video-export.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
