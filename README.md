@@ -2,12 +2,15 @@
 
 Spetlyscroll is a private, browser-based studio for creating seamless social-media carousels. Photos and videos stay on the device, projects autosave in the browser, and finished slides export in posting order.
 
+A Spetlyscroll egy privát, böngészőalapú stúdió egységes közösségimédia-carouselök készítéséhez. A felület angolul és magyarul is használható; a nyelvválasztást az alkalmazás megjegyzi.
+
 [Open the web app](https://spetergabor.github.io/spetlyscroll/) · [Download the desktop app](https://github.com/spetergabor/spetlyscroll/releases/latest)
 
 ## Features
 
 - Home dashboard with visual previews of saved graphics and a one-click new graphic action
 - Multiple browser-local projects with automatic recent-project saving
+- Complete English and Hungarian interface with a persistent language selector
 - One continuous canvas across 1–20 slides
 - 4:5, square, and story aspect ratios
 - Drag and resize photos or videos, then zoom and reposition the media inside its frame

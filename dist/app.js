@@ -2,6 +2,127 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
+  const TRANSLATIONS = {
+    hu: {
+      "Spetlyscroll — seamless carousel studio":"Spetlyscroll — egységes carousel stúdió",
+      "Spetlyscroll is a private, browser-based carousel studio for seamless social posts.":"A Spetlyscroll egy privát, böngészőalapú stúdió egységes közösségimédia-carouselök készítéséhez.",
+      "Language":"Nyelv", "Your private design studio":"A privát tervezőstúdiód", "Import project":"Projekt importálása", "New graphic":"Új grafika",
+      "Your creative space":"A kreatív tered", "Pick up where you left off.":"Folytasd ott, ahol abbahagytad.",
+      "Every graphic stays privately in this browser, ready for your next edit.":"Minden grafikád privát módon ebben a böngészőben marad, készen a következő szerkesztésre.",
+      "Create something new":"Készíts valami újat", "Blank 4:5 graphic":"Üres 4:5 grafika", "Saved locally":"Helyben mentve", "Your graphics":"Grafikáid",
+      "Preview":"Előnézet", "Export":"Exportálás", "Layouts":"Elrendezések", "Media":"Média", "Text":"Szöveg", "Background":"Háttér", "Backdrop":"Háttér",
+      "Start a story":"Kezdj el egy történetet", "Pick a starting rhythm. Drop photos or videos onto any media slot.":"Válassz egy kezdő elrendezést. Húzz fotókat vagy videókat bármely médiahelyre.",
+      "Template type":"Sablontípus", "Single post":"Egyképes poszt", "Carousel":"Carousel", "Blank post":"Üres poszt", "Single · 4:5":"Egyképes · 4:5",
+      "Seasonal edit":"Évszakok", "Editorial · 2 photos":"Editorial · 2 fotó", "Split focus":"Osztott fókusz", "Fashion · 2 photos":"Divat · 2 fotó",
+      "Four frames":"Négy keret", "Grid · 4 photos":"Rács · 4 fotó", "Sunday scrapbook":"Vasárnapi album", "Collage · 4 photos":"Kollázs · 4 fotó",
+      "Nine mood":"Kilenc hangulat", "Grid · 8 photos":"Rács · 8 fotó", "Portrait notes":"Portrévázlat", "Profile · 1 photo":"Profil · 1 fotó",
+      "Quiet stack":"Csendes sorozat", "B&W · 2–5 photos":"Fekete-fehér · 2–5 fotó", "Blank carousel":"Üres carousel", "Freeform · 3 slides":"Szabad · 3 dia",
+      "Editorial":"Editorial", "3 slides":"3 dia", "Panorama":"Panoráma", "Soft duo":"Lágy duó", "2 slides":"2 dia", "Wedding story":"Esküvői történet",
+      "Editorial · 5 slides":"Editorial · 5 dia", "Garden flow":"Kerti történet", "Organic · 6 slides":"Organikus · 6 dia", "Monochrome vows":"Monokróm fogadalmak",
+      "Film · 5 slides":"Film · 5 dia", "Minimal frames":"Minimál keretek", "Gallery · 5 slides":"Galéria · 5 dia", "Collage reel":"Kollázssorozat",
+      "Layered · 6 slides":"Réteges · 6 dia", "Border mosaic":"Keretes mozaik", "Framed grid · 6 slides":"Keretes rács · 6 dia", "Full-bleed mosaic":"Teljes felületű mozaik",
+      "Edge to edge · 6 slides":"Széltől szélig · 6 dia", "Overlap story":"Átfedő történet", "Layered photos · 6 slides":"Réteges fotók · 6 dia",
+      "Family tapestry":"Családi montázs", "Warm grid · 5 slides":"Meleg tónusú rács · 5 dia", "Coastal echoes":"Parti emlékek", "Airy collage · 6 slides":"Légies kollázs · 6 dia",
+      "Your library":"Médiatárad", "Upload photos or videos":"Fotók vagy videók feltöltése", "or drop here to add to your library":"vagy húzd ide a médiatárhoz",
+      "Drag a photo or video into any frame, or click to add it freely.":"Húzz egy fotót vagy videót bármely keretbe, vagy kattints a szabad elhelyezéshez.",
+      "Your media never leaves this browser.":"A médiáid nem hagyják el ezt a böngészőt.", "Add a voice":"Adj hangot neki", "Display title":"Kiemelt cím", "Body text":"Törzsszöveg", "Small label":"Kis címke",
+      "Try crossing a seam":"Nyúlj át a vágáson", "Place an image over two slides to create a satisfying, continuous swipe.":"Helyezz egy képet két dia fölé a folyamatos, látványos lapozáshoz.",
+      "Set the mood":"Állítsd be a hangulatot", "Choose where the canvas color begins and how many carousel slides it covers.":"Válaszd ki, hol kezdődjön a vászon színe, és hány carousel-diát fedjen le.",
+      "Carousel background map":"Carousel háttértérkép", "Starts on":"Kezdődia", "Background starts on slide":"A háttér kezdődiája", "Covers":"Lefedés", "Background span":"Háttér kiterjedése",
+      "All":"Mind", "Entire carousel":"Teljes carousel", "Custom color":"Egyéni szín", "Build a color sequence":"Készíts színsorozatot",
+      "Set one color for slides 1–2, then choose a new start slide and continue with another color.":"Állíts be egy színt az 1–2. diára, majd válassz új kezdődiát, és folytasd másik színnel.",
+      "Warm white":"Meleg fehér", "Blush":"Púder", "Sage":"Zsálya", "Sky":"Égkék", "Sun":"Napfény", "Coral":"Korall", "Violet":"Ibolya", "Ink":"Tinta",
+      "Canvas ratio":"Vászon képaránya", "Draw a photo frame anywhere on the canvas":"Rajzolj fotókeretet bárhová a vásznon", "Photo frame":"Fotókeret",
+      "Slides":"Diák", "Remove slide":"Dia eltávolítása", "Add slide":"Dia hozzáadása", "Photos":"Fotók", "Number of photos":"Fotók száma", "Zoom out":"Kicsinyítés", "Zoom in":"Nagyítás",
+      "Carousel canvas":"Carousel-vászon", "keep proportions":"arányok megtartása", "delete layer":"réteg törlése", "finish drawing":"rajzolás befejezése", "Fit canvas":"Vászon illesztése",
+      "Select a layer":"Válassz egy réteget", "Click any photo, video or text on the canvas to fine-tune it here.":"Kattints egy fotóra, videóra vagy szövegre a vásznon, és itt finomhangolhatod.",
+      "Selected layer":"Kijelölt réteg", "Photo":"Fotó", "Video":"Videó", "Position & size":"Pozíció és méret", "Rotation":"Forgatás", "Opacity":"Átlátszóság",
+      "Corner radius":"Sarokkerekítés", "Image zoom":"Kép nagyítása", "Horizontal focus":"Vízszintes fókusz", "Vertical focus":"Függőleges fókusz",
+      "Reposition on canvas":"Áthelyezés a vásznon", "Finish repositioning":"Áthelyezés befejezése", "Fit":"Illesztés", "Fill":"Kitöltés", "Typeface":"Betűtípus",
+      "Editorial serif":"Editorial talpas", "Modern sans":"Modern talpatlan", "Handwritten":"Kézírásos", "Make it memorable":"Legyen emlékezetes", "Size":"Méret", "Text color":"Szövegszín",
+      "Left":"Balra", "Center":"Középre", "Right":"Jobbra", "Send back":"Hátraküldés", "Bring front":"Előrehozás", "Duplicate":"Duplikálás",
+      "Canvas stack":"Vászon rétegei", "Layers":"Rétegek", "Delete layer":"Réteg törlése", "Close properties":"Tulajdonságok bezárása",
+      "Drop to add photos or videos":"Húzd ide a fotókat vagy videókat", "Swipe preview":"Lapozási előnézet", "Your carousel":"A carouseled", "Close":"Bezárás",
+      "Ready to post":"Készen áll a posztolásra", "Export carousel":"Carousel exportálása", "3 high-quality slides":"3 kiváló minőségű dia",
+      "Images are rendered locally and downloaded in posting order.":"A képek helyben készülnek el, és posztolási sorrendben töltődnek le.",
+      "Instagram-ready video slides":"Instagram-kompatibilis videódiák", "Video frames, crop and overlays are rendered locally to MP4 (H.264/AAC). Export can take a little longer.":"A videóképkockák, vágások és rétegek helyben készülnek el MP4-be (H.264/AAC). Az exportálás kissé tovább tarthat.",
+      "File type":"Fájltípus", "PNG — best quality":"PNG — legjobb minőség", "JPEG — smaller files":"JPEG — kisebb fájlok", "Quality":"Minőség",
+      "Download as one ZIP":"Letöltés egy ZIP-fájlban", "All slides stay together and keep their posting order.":"Minden dia együtt marad, a posztolási sorrend megtartásával.",
+      "Download all slides":"Összes dia letöltése", "Download slide":"Dia letöltése", "Everything is rendered locally in your browser.":"Minden helyben, a böngésződben készül el.",
+      "Undo":"Visszavonás", "Redo":"Ismét", "Editor tools":"Szerkesztőeszközök", "Project title":"Projekt címe",
+      "Saving…":"Mentés…", "Save failed — retrying on next change":"A mentés sikertelen — újrapróbáljuk a következő módosításnál",
+      "Your story starts here.":"Itt kezdődik a történeted.", "Draw a photo frame, upload media, or choose a layout.":"Rajzolj fotókeretet, tölts fel médiát, vagy válassz elrendezést.",
+      "Your layers will appear here.":"A rétegeid itt jelennek meg.", "Drag to reorder":"Húzd a sorrend módosításához", "Show":"Megjelenítés", "Hide":"Elrejtés", "Unlock":"Feloldás", "Lock":"Zárolás", "Locked":"Zárolva",
+      "Project backup could not be created":"Nem sikerült létrehozni a projekt biztonsági mentését", "Project backup downloaded":"A projekt biztonsági mentése letöltve",
+      "Project imported":"Projekt importálva", "This is not a valid Spetlyscroll project backup":"Ez nem érvényes Spetlyscroll projektmentés", "Project duplicated":"Projekt duplikálva", "Project deleted":"Projekt törölve",
+      "No graphics yet":"Még nincsenek grafikák", "Create your first design with the button above.":"Készítsd el az első grafikádat a fenti gombbal.", "Backup":"Biztonsági mentés", "Delete":"Törlés",
+      "This project could not be opened":"A projektet nem sikerült megnyitni", "Untitled graphic":"Névtelen grafika", "Untitled carousel":"Névtelen carousel", "Imported graphic":"Importált grafika",
+      "Unlock this layer before deleting it":"Törlés előtt oldd fel a réteget", "Unlock this layer before duplicating it":"Duplikálás előtt oldd fel a réteget", "Unlock this layer to edit it":"Szerkesztés előtt oldd fel a réteget",
+      "Drag into a frame or click to add":"Húzd egy keretbe, vagy kattints a hozzáadáshoz", "Remove from Media":"Eltávolítás a médiatárból", "Remove item from Media":"Elem eltávolítása a médiatárból",
+      "Media removed · canvas copies stay in place":"Média eltávolítva · a vásznon lévő példányok megmaradnak", "Unlock this layer to replace its media":"Médiacsere előtt oldd fel a réteget",
+      "Choose a photo or video file":"Válassz fotó- vagy videófájlt", "Photo frame tool closed":"A fotókeret eszköz bezárva", "Photo frame created · drag media into it or draw another":"Fotókeret létrehozva · húzz bele médiát, vagy rajzolj egy újat",
+      "Drawing photo frames — drag on the canvas, press Esc to finish":"Fotókeretek rajzolása — húzd az egeret a vásznon, az Esc befejezi", "Drag anywhere on the canvas to draw photo frames · Esc to finish":"Húzd az egeret bárhol a vásznon fotókeret rajzolásához · az Esc befejezi",
+      "Building preview…":"Előnézet készítése…", "Packing ZIP…":"ZIP csomagolása…", "Export complete · video audio was not supported by this browser":"Az exportálás elkészült · ez a böngésző nem támogatta a videó hangját",
+      "Carousel exported in Instagram posting order":"A carousel Instagram-posztolási sorrendben exportálva", "Video export failed":"A videó exportálása sikertelen", "Maximum 20 slides":"Legfeljebb 20 dia lehet",
+      "Drag the media to reposition it":"Húzd a médiát az áthelyezéshez", "Drag the media inside its frame":"Húzd a médiát a keretén belül", "Media position saved":"A média pozíciója mentve",
+      "Image could not be loaded":"A képet nem sikerült betölteni", "Video source is unavailable":"A videóforrás nem érhető el", "Video export engine is unavailable":"A videóexportáló motor nem érhető el"
+    }
+  };
+
+  let currentLanguage = localStorage.getItem("spetlyscroll-language") === "hu" ? "hu" : "en";
+  const originalTextNodes = new WeakMap();
+  const originalAttributes = new WeakMap();
+  const localizationSkip = ".artboard,.template-preview,#projectGrid,#layersList,#mediaGrid,#fontPreview,#toast";
+
+  function t(key, variables = {}) {
+    let value = currentLanguage === "hu" ? (TRANSLATIONS.hu[key] || key) : key;
+    Object.entries(variables).forEach(([name, replacement]) => { value = value.replaceAll(`{${name}}`, replacement); });
+    return value;
+  }
+
+  function localizeStaticUi(root = document) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.parentElement || node.parentElement.closest(localizationSkip)) continue;
+      const original = originalTextNodes.get(node) ?? node.nodeValue;
+      if (!originalTextNodes.has(node)) originalTextNodes.set(node, original);
+      const trimmed = original.trim();
+      if (!trimmed || !TRANSLATIONS.hu[trimmed]) { node.nodeValue = original; continue; }
+      const translated = t(trimmed);
+      node.nodeValue = `${original.match(/^\s*/)?.[0] || ""}${translated}${original.match(/\s*$/)?.[0] || ""}`;
+    }
+    const elements = root.querySelectorAll?.("[aria-label],[title],[content]") || [];
+    elements.forEach((element) => {
+      if (element.closest(localizationSkip)) return;
+      let originals = originalAttributes.get(element);
+      if (!originals) { originals = {}; originalAttributes.set(element, originals); }
+      ["aria-label","title","content"].forEach((attribute) => {
+        if (!element.hasAttribute(attribute)) return;
+        if (!(attribute in originals)) originals[attribute] = element.getAttribute(attribute);
+        element.setAttribute(attribute, t(originals[attribute]));
+      });
+    });
+    document.documentElement.lang = currentLanguage;
+    document.title = t("Spetlyscroll — seamless carousel studio");
+  }
+
+  function localizedDefaultTitle() { return t("Untitled graphic"); }
+
+  async function setLanguage(language, { rerender = true } = {}) {
+    currentLanguage = language === "hu" ? "hu" : "en";
+    localStorage.setItem("spetlyscroll-language", currentLanguage);
+    $$(".language-select").forEach((select) => { select.value = currentLanguage; });
+    localizeStaticUi();
+    if (!rerender) return;
+    $("#saveStatus").textContent = t("Saved locally");
+    syncBackgroundControls();
+    renderMedia();
+    renderLayers();
+    await renderProjectHome();
+    if ($("#exportDialog")?.open) openExport();
+  }
+
   const ARTBOARD_BASE_HEIGHT = 675;
   const DB_NAME = "spetlyscroll-db";
   const DB_VERSION = 2;
@@ -17,7 +138,7 @@
   const state = {
     projectId: null,
     updatedAt: null,
-    title: "Untitled carousel",
+    title: t("Untitled carousel"),
     slides: 3,
     ratio: "4:5",
     background: "#f4f1e8",
@@ -134,7 +255,7 @@
   }
 
   function scheduleSave() {
-    $("#saveStatus").textContent = "Saving…";
+    $("#saveStatus").textContent = t("Saving…");
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveProjectNow, 500);
   }
@@ -263,7 +384,7 @@
 
   function updateProjectIndex(project) {
     const metadata = {
-      id:project.projectId, title:project.title || "Untitled graphic", updatedAt:project.updatedAt,
+      id:project.projectId, title:project.title || localizedDefaultTitle(), updatedAt:project.updatedAt,
       slides:project.slides, ratio:project.ratio, background:project.background,
     };
     const index = projectIndex().filter((entry) => entry.id !== project.projectId);
@@ -285,11 +406,11 @@
       updateProjectIndex(project);
       localStorage.removeItem(`seam-project:${project.projectId}`);
       localStorage.removeItem("seam-project");
-      if (state.projectId === project.projectId) $("#saveStatus").textContent = "Saved locally";
+      if (state.projectId === project.projectId) $("#saveStatus").textContent = t("Saved locally");
     }).catch((error) => {
       if (writeMedia) mediaDirty = true;
       console.error("Project save failed", error);
-      $("#saveStatus").textContent = "Save failed — retrying on next change";
+      $("#saveStatus").textContent = t("Save failed — retrying on next change");
     });
     return saveChain;
   }
@@ -386,7 +507,7 @@
     if (!state.layers.length) {
       const empty = document.createElement("div");
       empty.className = "canvas-empty";
-      empty.innerHTML = "<span>Your story starts here.</span><small>Draw a photo frame, upload media, or choose a layout.</small>";
+      empty.innerHTML = `<span>${t("Your story starts here.")}</span><small>${t("Draw a photo frame, upload media, or choose a layout.")}</small>`;
       artboard.appendChild(empty);
     }
 
@@ -470,7 +591,7 @@
     list.innerHTML = "";
     const ordered = [...state.layers].sort((a, b) => b.z - a.z);
     if (!ordered.length) {
-      list.innerHTML = '<div class="layers-empty">Your layers will appear here.</div>';
+      list.innerHTML = `<div class="layers-empty">${t("Your layers will appear here.")}</div>`;
       return;
     }
     ordered.forEach((layer, index) => {
@@ -480,14 +601,14 @@
       row.draggable = true;
       const visualCount = ordered.filter(isVisualLayer).length;
       const visualIndex = visualCount - ordered.slice(0, index).filter(isVisualLayer).length;
-      const label = layer.type === "video" ? `Video ${visualIndex}` : layer.type === "image" ? `Photo ${visualIndex}` : (layer.text || "Text").replace(/\n/g, " ");
+      const label = layer.type === "video" ? `${t("Video")} ${visualIndex}` : layer.type === "image" ? `${t("Photo")} ${visualIndex}` : (layer.text || t("Text")).replace(/\n/g, " ");
       const visualThumb = layer.type === "video" ? (layer.poster || "") : layer.src;
       row.innerHTML = `
-        <span class="layer-drag" title="Drag to reorder">⠿</span>
+        <span class="layer-drag" title="${t("Drag to reorder")}">⠿</span>
         <span class="layer-thumb">${isVisualLayer(layer) ? `<img src="${visualThumb}" alt="" />${layer.type === "video" ? "<i>▶</i>" : ""}` : "Aa"}</span>
-        <span class="layer-meta"><b>${escapeHtml(label)}</b><small>${layer.type === "video" ? "Video" : layer.type === "image" ? "Photo" : "Text"}${layer.locked ? " · Locked" : ""}</small></span>
-        <button class="layer-toggle visibility-toggle${layer.hidden ? "" : " active"}" aria-label="${layer.hidden ? "Show" : "Hide"} layer"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
-        <button class="layer-toggle lock-toggle${layer.locked ? " active" : ""}" aria-label="${layer.locked ? "Unlock" : "Lock"} layer"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button>`;
+        <span class="layer-meta"><b>${escapeHtml(label)}</b><small>${layer.type === "video" ? t("Video") : layer.type === "image" ? t("Photo") : t("Text")}${layer.locked ? ` · ${t("Locked")}` : ""}</small></span>
+        <button class="layer-toggle visibility-toggle${layer.hidden ? "" : " active"}" aria-label="${layer.hidden ? t("Show") : t("Hide")}"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
+        <button class="layer-toggle lock-toggle${layer.locked ? " active" : ""}" aria-label="${layer.locked ? t("Unlock") : t("Lock")}"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button>`;
       row.addEventListener("click", () => selectLayer(layer.id));
       $(".visibility-toggle", row).addEventListener("click", (event) => {
         event.stopPropagation();
@@ -555,8 +676,8 @@
   }
 
   function formatProjectDate(timestamp) {
-    if (!timestamp) return "Saved locally";
-    return new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",year:"numeric"}).format(new Date(timestamp));
+    if (!timestamp) return t("Saved locally");
+    return new Intl.DateTimeFormat(currentLanguage === "hu" ? "hu-HU" : "en-US",{month:"short",day:"numeric",year:"numeric"}).format(new Date(timestamp));
   }
 
   function downloadBlob(blob, filename) {
@@ -586,7 +707,7 @@
   async function exportProjectBackup(projectId = state.projectId) {
     if (projectId === state.projectId) await saveProjectNow();
     const project = await getProject(projectId);
-    if (!project) return showToast("Project backup could not be created");
+    if (!project) return showToast(t("Project backup could not be created"));
     const backupProject = snapshotProjectForBackup(project);
     for (const item of backupProject.media) {
       if (item.blob instanceof Blob) {
@@ -596,7 +717,7 @@
     }
     const payload = { format:"spetlyscroll-project", version:2, exportedAt:Date.now(), project:backupProject };
     downloadBlob(new Blob([JSON.stringify(payload)], {type:"application/json"}), `${safeFilename(project.title)}.spetlyscroll`);
-    showToast("Project backup downloaded");
+    showToast(t("Project backup downloaded"));
   }
 
   function snapshotProjectForBackup(project) {
@@ -616,15 +737,15 @@
       if (!imported || !Array.isArray(imported.layers) || !Array.isArray(imported.media)) throw new Error("Invalid project");
       const project = structuredClone(imported);
       project.projectId = uid();
-      project.title = `${project.title || "Imported graphic"} — imported`;
+      project.title = currentLanguage === "hu" ? `${project.title || t("Imported graphic")} — importált` : `${project.title || "Imported graphic"} — imported`;
       project.updatedAt = Date.now();
       await putProject(project);
       updateProjectIndex(project);
       await renderProjectHome();
-      showToast("Project imported");
+      showToast(t("Project imported"));
     } catch (error) {
       console.error(error);
-      showToast("This is not a valid Spetlyscroll project backup");
+      showToast(t("This is not a valid Spetlyscroll project backup"));
     } finally {
       $("#projectImportInput").value = "";
     }
@@ -635,46 +756,46 @@
     if (!source) return;
     const copy = structuredClone(source);
     copy.projectId = uid();
-    copy.title = `${source.title || "Untitled graphic"} — copy`;
+    copy.title = currentLanguage === "hu" ? `${source.title || localizedDefaultTitle()} — másolat` : `${source.title || "Untitled graphic"} — copy`;
     copy.updatedAt = Date.now();
     await putProject(copy);
     updateProjectIndex(copy);
     await renderProjectHome();
-    showToast("Project duplicated");
+    showToast(t("Project duplicated"));
   }
 
   async function deleteProjectFromHome(projectId) {
     const project = await getProject(projectId);
-    if (!project || !confirm(`Delete “${project.title || "Untitled graphic"}”? This cannot be undone.`)) return;
+    if (!project || !confirm(currentLanguage === "hu" ? `Törlöd ezt: „${project.title || localizedDefaultTitle()}”? Ez nem vonható vissza.` : `Delete “${project.title || "Untitled graphic"}”? This cannot be undone.`)) return;
     await removeProject(projectId);
     localStorage.removeItem(`seam-project:${projectId}`);
     localStorage.setItem("seam-project-index", JSON.stringify(projectIndex().filter((entry) => entry.id !== projectId)));
     if (localStorage.getItem("seam-current-project") === projectId) localStorage.removeItem("seam-current-project");
     await renderProjectHome();
-    showToast("Project deleted");
+    showToast(t("Project deleted"));
   }
 
   async function renderProjectHome() {
     const grid = $("#projectGrid");
     const projects = (await getAllProjects()).sort((a,b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-    $("#projectCount").textContent = `${projects.length} ${projects.length === 1 ? "project" : "projects"}`;
+    $("#projectCount").textContent = currentLanguage === "hu" ? `${projects.length} projekt` : `${projects.length} ${projects.length === 1 ? "project" : "projects"}`;
     if (!projects.length) {
-      grid.innerHTML = '<div class="project-empty"><div><b>No graphics yet</b><span>Create your first design with the button above.</span></div></div>';
+      grid.innerHTML = `<div class="project-empty"><div><b>${t("No graphics yet")}</b><span>${t("Create your first design with the button above.")}</span></div></div>`;
       return;
     }
     grid.innerHTML = projects.map((project) => `
       <article class="project-card" data-project-id="${project.projectId}">
-        <button class="project-open" aria-label="Open ${escapeHtml(project.title || "Untitled graphic")}">
+        <button class="project-open" aria-label="${currentLanguage === "hu" ? "Megnyitás" : "Open"}: ${escapeHtml(project.title || localizedDefaultTitle())}">
           <span class="project-card-preview">${projectPreviewMarkup(project)}</span>
           <span class="project-card-meta">
-            <span><b>${escapeHtml(project.title || "Untitled graphic")}</b><small>${project.slides} ${project.slides === 1 ? "slide" : "slides"} · ${project.ratio} · ${formatProjectDate(project.updatedAt)}</small></span>
+            <span><b>${escapeHtml(project.title || localizedDefaultTitle())}</b><small>${project.slides} ${currentLanguage === "hu" ? "dia" : project.slides === 1 ? "slide" : "slides"} · ${project.ratio} · ${formatProjectDate(project.updatedAt)}</small></span>
             <span class="project-card-arrow"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
           </span>
         </button>
         <div class="project-card-actions">
-          <button data-project-action="duplicate">Duplicate</button>
-          <button data-project-action="backup">Backup</button>
-          <button class="danger-text" data-project-action="delete">Delete</button>
+          <button data-project-action="duplicate">${t("Duplicate")}</button>
+          <button data-project-action="backup">${t("Backup")}</button>
+          <button class="danger-text" data-project-action="delete">${t("Delete")}</button>
         </div>
       </article>`).join("");
     $$(".project-card", grid).forEach((card) => {
@@ -719,13 +840,13 @@
       syncAll();
       showEditor();
       if (migrated) scheduleSave();
-    } catch (error) { console.error(error); showToast("This project could not be opened"); }
+    } catch (error) { console.error(error); showToast(t("This project could not be opened")); }
   }
 
   function startNewProject() {
     clearTimeout(saveTimer);
     Object.assign(state, {
-      projectId:uid(), updatedAt:Date.now(), title:"Untitled graphic", slides:1, ratio:"4:5",
+      projectId:uid(), updatedAt:Date.now(), title:localizedDefaultTitle(), slides:1, ratio:"4:5",
       background:"#f4f1e8", slideBackgrounds:[], backgroundStart:0, backgroundSpan:"all", zoom:55,
       layers:[], media:[], selectedId:null, history:[], future:[], previewIndex:0,
       activeTemplate:"blank-single", templatePhotoCount:3, cropModeId:null, frameDrawMode:false,
@@ -774,9 +895,9 @@
     pushHistory();
     const { w, h } = ratioInfo();
     const presets = {
-      display: { text: "Make it memorable", fontFamily: "'Instrument Serif', serif", fontSize: 92, fontWeight: 400, w: 520, h: 118, letterSpacing: "normal", textTransform: "none" },
-      body: { text: "Add a little context to your story.", fontFamily: "'DM Sans', sans-serif", fontSize: 34, fontWeight: 500, w: 470, h: 95, letterSpacing: "normal", textTransform: "none" },
-      label: { text: "A MOMENT TO KEEP", fontFamily: "'DM Sans', sans-serif", fontSize: 22, fontWeight: 700, w: 340, h: 48, letterSpacing: ".15em", textTransform: "uppercase" },
+      display: { text: currentLanguage === "hu" ? "Legyen emlékezetes" : "Make it memorable", fontFamily: "'Instrument Serif', serif", fontSize: 92, fontWeight: 400, w: 520, h: 118, letterSpacing: "normal", textTransform: "none" },
+      body: { text: currentLanguage === "hu" ? "Adj egy kis hátteret a történetedhez." : "Add a little context to your story.", fontFamily: "'DM Sans', sans-serif", fontSize: 34, fontWeight: 500, w: 470, h: 95, letterSpacing: "normal", textTransform: "none" },
+      label: { text: currentLanguage === "hu" ? "EGY PILLANAT, AMIT MEGŐRZÜNK" : "A MOMENT TO KEEP", fontFamily: "'DM Sans', sans-serif", fontSize: 22, fontWeight: 700, w: 340, h: 48, letterSpacing: ".15em", textTransform: "uppercase" },
     };
     const preset = presets[style];
     const layer = { id: uid(), type: "text", x: Math.max(28, (w * state.slides - preset.w) / 2), y: h * .42, z: nextZ(), color: "#171719", align: "left", opacity: 1, rotation: 0, ...preset };
@@ -792,7 +913,7 @@
 
   function deleteSelected() {
     if (!state.selectedId) return;
-    if (selectedLayer()?.locked) { showToast("Unlock this layer before deleting it"); return; }
+    if (selectedLayer()?.locked) { showToast(t("Unlock this layer before deleting it")); return; }
     pushHistory();
     state.layers = state.layers.filter((layer) => layer.id !== state.selectedId);
     state.selectedId = null;
@@ -804,7 +925,7 @@
   function duplicateSelected() {
     const layer = selectedLayer();
     if (!layer) return;
-    if (layer.locked) { showToast("Unlock this layer before duplicating it"); return; }
+    if (layer.locked) { showToast(t("Unlock this layer before duplicating it")); return; }
     pushHistory();
     const duplicate = {...layer};
     duplicate.id = uid();
@@ -826,7 +947,7 @@
     $("#propertiesPanel").classList.toggle("hidden", !layer);
     rightPanel.classList.toggle("has-selection", !!layer);
     if (!layer) return;
-    $("#layerType").textContent = layer.type === "video" ? "Video" : layer.type === "image" ? "Photo" : "Text";
+    $("#layerType").textContent = layer.type === "video" ? t("Video") : layer.type === "image" ? t("Photo") : t("Text");
     $("#imageProperties").classList.toggle("hidden", !isVisualLayer(layer));
     $("#textProperties").classList.toggle("hidden", layer.type !== "text");
     $("#geometryX").value = Math.round(layer.x * 10) / 10;
@@ -846,13 +967,13 @@
       $("#imageFocusYRange").value = layer.focusY ?? 50;
       $("#imageFocusYValue").textContent = `${$("#imageFocusYRange").value}%`;
       $("#repositionImage").classList.toggle("active", state.cropModeId === layer.id);
-      $("#repositionImage span").textContent = state.cropModeId === layer.id ? "Finish repositioning" : "Reposition on canvas";
+      $("#repositionImage span").textContent = state.cropModeId === layer.id ? t("Finish repositioning") : t("Reposition on canvas");
       $$('[data-fit]').forEach((button) => button.classList.toggle("active", button.dataset.fit === (layer.fit || "cover")));
     } else {
       $("#textContent").value = layer.text;
       $("#fontFamily").value = layer.fontFamily;
       $("#fontPreview").style.fontFamily = layer.fontFamily;
-      $("#fontPreview").textContent = (layer.text || "Make it memorable").replace(/\n/g," ").slice(0,42);
+      $("#fontPreview").textContent = (layer.text || t("Make it memorable")).replace(/\n/g," ").slice(0,42);
       $("#fontSizeRange").value = layer.fontSize;
       $("#fontSizeValue").textContent = layer.fontSize;
       $("#textColor").value = layer.color;
@@ -894,7 +1015,7 @@
   function mutateSelected(mutator, history = false, fullRender = false) {
     const layer = selectedLayer();
     if (!layer) return;
-    if (layer.locked) { showToast("Unlock this layer to edit it"); syncProperties(); return; }
+    if (layer.locked) { showToast(t("Unlock this layer to edit it")); syncProperties(); return; }
     if (history) pushHistory();
     mutator(layer);
     if (fullRender) renderLayers();
@@ -919,9 +1040,9 @@
       const button = document.createElement("button");
       button.className = `media-thumb${mediaKind(item) === "video" ? " video-media" : ""}`;
       button.draggable = true;
-      button.title = "Drag into a frame or click to add";
-      button.setAttribute("aria-label", `Add uploaded ${mediaKind(item)} to canvas`);
-      button.innerHTML = `<img src="${item.poster || item.src}" alt="Uploaded ${mediaKind(item)}" />${mediaKind(item) === "video" ? `<span class="media-duration">${formatDuration(item.duration)}</span>` : ""}`;
+      button.title = t("Drag into a frame or click to add");
+      button.setAttribute("aria-label", currentLanguage === "hu" ? `Feltöltött ${mediaKind(item) === "video" ? "videó" : "kép"} hozzáadása a vászonhoz` : `Add uploaded ${mediaKind(item)} to canvas`);
+      button.innerHTML = `<img src="${item.poster || item.src}" alt="${currentLanguage === "hu" ? "Feltöltött média" : `Uploaded ${mediaKind(item)}`}" />${mediaKind(item) === "video" ? `<span class="media-duration">${formatDuration(item.duration)}</span>` : ""}`;
       button.addEventListener("click", () => addMediaLayer(item));
       button.addEventListener("dragstart", (event) => {
         if (state.frameDrawMode) setFrameDrawMode(false, false);
@@ -937,8 +1058,8 @@
       const remove = document.createElement("button");
       remove.className = "media-delete";
       remove.type = "button";
-      remove.title = "Remove from Media";
-      remove.setAttribute("aria-label", "Remove item from Media");
+      remove.title = t("Remove from Media");
+      remove.setAttribute("aria-label", t("Remove item from Media"));
       remove.textContent = "×";
       remove.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -948,7 +1069,7 @@
         mediaDirty = true;
         renderMedia();
         scheduleSave();
-        showToast("Media removed · canvas copies stay in place");
+        showToast(t("Media removed · canvas copies stay in place"));
       });
       wrapper.append(button, remove);
       grid.appendChild(wrapper);
@@ -962,7 +1083,7 @@
 
   function replaceMediaInLayer(layer, item) {
     if (!layer) return false;
-    if (layer.locked) { showToast("Unlock this layer to replace its media"); return false; }
+    if (layer.locked) { showToast(t("Unlock this layer to replace its media")); return false; }
     pushHistory();
     layer.type = mediaKind(item);
     layer.src = item.src;
@@ -976,7 +1097,7 @@
     state.cropModeId = null;
     renderLayers();
     scheduleSave();
-    showToast(`${layer.type === "video" ? "Video" : "Photo"} placed in frame`);
+    showToast(currentLanguage === "hu" ? `${layer.type === "video" ? "Videó" : "Fotó"} a keretbe helyezve` : `${layer.type === "video" ? "Video" : "Photo"} placed in frame`);
     return true;
   }
 
@@ -1029,7 +1150,7 @@
 
   async function handleFiles(files, targetLayerId = null, placement = null, placeOnCanvas = false) {
     const mediaFiles = [...files].filter(isSupportedMediaFile);
-    if (!mediaFiles.length) return showToast("Choose a photo or video file");
+    if (!mediaFiles.length) return showToast(t("Choose a photo or video file"));
     let loadedCount = 0;
     for (let index = 0; index < mediaFiles.length; index++) {
       const file = mediaFiles[index];
@@ -1049,10 +1170,10 @@
         loadedCount++;
       } catch (error) {
         console.error(error);
-        showToast(`Could not add ${file.name}`);
+        showToast(currentLanguage === "hu" ? `Nem sikerült hozzáadni: ${file.name}` : `Could not add ${file.name}`);
       }
     }
-    if (!targetLayerId && !placeOnCanvas && loadedCount) showToast(`${loadedCount} media ${loadedCount === 1 ? "item" : "items"} added to Media`);
+    if (!targetLayerId && !placeOnCanvas && loadedCount) showToast(currentLanguage === "hu" ? `${loadedCount} médiaelem hozzáadva a médiatárhoz` : `${loadedCount} media ${loadedCount === 1 ? "item" : "items"} added to Media`);
   }
 
   function switchPanel(name) {
@@ -1074,23 +1195,20 @@
   function syncBackgroundControls() {
     const startSelect = $("#backgroundStart");
     if (!startSelect) return;
-    const currentOptions = [...startSelect.options];
-    if (currentOptions.length !== state.slides) {
-      startSelect.innerHTML = Array.from({length:state.slides}, (_, index) => `<option value="${index}">Slide ${index + 1}</option>`).join("");
-    }
+    startSelect.innerHTML = Array.from({length:state.slides}, (_, index) => `<option value="${index}">${currentLanguage === "hu" ? `${index + 1}. dia` : `Slide ${index + 1}`}</option>`).join("");
     state.backgroundStart = Math.max(0, Math.min(state.slides - 1, state.backgroundStart || 0));
     startSelect.value = String(state.backgroundStart);
     startSelect.disabled = state.backgroundSpan === "all";
     $$("[data-bg-span]").forEach((button) => button.classList.toggle("active", button.dataset.bgSpan === String(state.backgroundSpan)));
     const range = backgroundScopeRange();
     $("#backgroundScopeStatus").textContent = state.backgroundSpan === "all"
-      ? "Entire carousel"
+      ? t("Entire carousel")
       : range.count === 1
-        ? `Slide ${range.start + 1}`
-        : `Slides ${range.start + 1}–${range.start + range.count}`;
+        ? (currentLanguage === "hu" ? `${range.start + 1}. dia` : `Slide ${range.start + 1}`)
+        : (currentLanguage === "hu" ? `${range.start + 1}–${range.start + range.count}. dia` : `Slides ${range.start + 1}–${range.start + range.count}`);
     const activeIndexes = new Set(Array.from({length:range.count}, (_, index) => range.start + index));
     $("#backgroundMap").innerHTML = Array.from({length:state.slides}, (_, index) =>
-      `<i class="${activeIndexes.has(index) ? "in-scope" : ""}" style="background:${backgroundColorForSlide(index)}" title="Slide ${index + 1}"></i>`
+      `<i class="${activeIndexes.has(index) ? "in-scope" : ""}" style="background:${backgroundColorForSlide(index)}" title="${currentLanguage === "hu" ? `${index + 1}. dia` : `Slide ${index + 1}`}"></i>`
     ).join("");
     const selectedColor = state.backgroundSpan === "all" ? state.background : backgroundColorForSlide(range.start);
     $("#customColor").value = selectedColor;
@@ -1444,8 +1562,8 @@
     button.classList.toggle("active", !!state.frameDrawMode);
     button.setAttribute("aria-pressed", String(!!state.frameDrawMode));
     button.title = state.frameDrawMode
-      ? "Drawing photo frames — drag on the canvas, press Esc to finish"
-      : "Draw a photo frame anywhere on the canvas";
+      ? t("Drawing photo frames — drag on the canvas, press Esc to finish")
+      : t("Draw a photo frame anywhere on the canvas");
     artboard.classList.toggle("frame-draw-mode", !!state.frameDrawMode);
   }
 
@@ -1458,7 +1576,7 @@
       window.removeEventListener("pointermove", pointerMove);
     }
     syncFrameDrawMode();
-    if (announce) showToast(state.frameDrawMode ? "Drag anywhere on the canvas to draw photo frames · Esc to finish" : "Photo frame tool closed");
+    if (announce) showToast(state.frameDrawMode ? t("Drag anywhere on the canvas to draw photo frames · Esc to finish") : t("Photo frame tool closed"));
   }
 
   function canvasPoint(clientX, clientY) {
@@ -1553,7 +1671,7 @@
     const id = layerElement.dataset.id;
     if (state.selectedId !== id) selectLayer(id);
     const layer = state.layers.find((item) => item.id === id);
-    if (layer.locked) { showToast("Unlock this layer to edit it"); return; }
+    if (layer.locked) { showToast(t("Unlock this layer to edit it")); return; }
     pushHistory();
     drag = {
       id,
@@ -1643,7 +1761,7 @@
       renderLayers();
       scheduleSave();
       updateHistoryButtons();
-      showToast("Photo frame created · drag media into it or draw another");
+      showToast(t("Photo frame created · drag media into it or draw another"));
       return;
     }
     if (drag && !drag.moved) state.history.pop();
@@ -1733,7 +1851,7 @@
     const pending = new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
-      image.onerror = () => { imageCache.delete(src); reject(new Error("Image could not be loaded")); };
+      image.onerror = () => { imageCache.delete(src); reject(new Error(t("Image could not be loaded"))); };
       image.src = src;
     });
     imageCache.set(src, pending);
@@ -1776,12 +1894,12 @@
     const media = state.media.find((item) => item.id === layer.mediaId);
     if (media?.blob instanceof Blob) return media.blob;
     const response = await fetch(layer.src);
-    if (!response.ok) throw new Error("Video source is unavailable");
+    if (!response.ok) throw new Error(t("Video source is unavailable"));
     return response.blob();
   }
 
   async function renderVideoSlide(index, layer, onProgress) {
-    if (!window.SpetlyVideo?.transcodeToInstagramMp4) throw new Error("Video export engine is unavailable");
+    if (!window.SpetlyVideo?.transcodeToInstagramMp4) throw new Error(t("Video export engine is unavailable"));
     await document.fonts.ready;
     const info = ratioInfo();
     const canvas = document.createElement("canvas");
@@ -1804,7 +1922,7 @@
   async function openPreview() {
     const strip = $("#previewStrip");
     strip.innerHTML = "";
-    showToast("Building preview…");
+    showToast(t("Building preview…"));
     for (let i = 0; i < state.slides; i++) strip.appendChild(await renderSlide(i, true));
     state.previewIndex = 0;
     updatePreviewPosition();
@@ -1820,10 +1938,10 @@
 
   function openExport() {
     const videoSlideCount = Array.from({length:state.slides}, (_, index) => videoLayersForSlide(index).length > 0).filter(Boolean).length;
-    $("#exportSummaryTitle").textContent = `${state.slides} high-quality ${state.slides === 1 ? "slide" : "slides"}`;
+    $("#exportSummaryTitle").textContent = currentLanguage === "hu" ? `${state.slides} kiváló minőségű dia` : `${state.slides} high-quality ${state.slides === 1 ? "slide" : "slides"}`;
     $("#exportStack").innerHTML = Array.from({length:Math.min(state.slides,4)}, (_,i) => `<i style="--rotate:${(i-(state.slides-1)/2)*5}deg"></i>`).join("");
     $("#exportAsZip").closest(".zip-option").classList.toggle("hidden", state.slides === 1);
-    $("#confirmExport span").textContent = state.slides === 1 ? "Download slide" : "Download all slides";
+    $("#confirmExport span").textContent = state.slides === 1 ? t("Download slide") : t("Download all slides");
     $("#videoExportNote").classList.toggle("hidden", videoSlideCount === 0);
     $("#exportDialog").showModal();
   }
@@ -1841,19 +1959,19 @@
     try {
       for (let i = 0; i < state.slides; i++) {
         const videoLayers = videoLayersForSlide(i);
-        if (videoLayers.length > 1) throw new Error(`Slide ${i + 1} contains more than one video. Keep one video per slide for Instagram export.`);
+        if (videoLayers.length > 1) throw new Error(currentLanguage === "hu" ? `A(z) ${i + 1}. dia egynél több videót tartalmaz. Az Instagram-exporthoz diánként egy videót használj.` : `Slide ${i + 1} contains more than one video. Keep one video per slide for Instagram export.`);
         let blob;
         let extension;
         if (videoLayers.length === 1) {
-          button.querySelector("span").textContent = `Encoding video ${i+1} of ${state.slides}…`;
+          button.querySelector("span").textContent = currentLanguage === "hu" ? `${i+1}/${state.slides}. videó kódolása…` : `Encoding video ${i+1} of ${state.slides}…`;
           const result = await renderVideoSlide(i, videoLayers[0], (progress) => {
-            button.querySelector("span").textContent = `Encoding slide ${i+1} · ${Math.round(progress * 100)}%`;
+            button.querySelector("span").textContent = currentLanguage === "hu" ? `${i+1}. dia kódolása · ${Math.round(progress * 100)}%` : `Encoding slide ${i+1} · ${Math.round(progress * 100)}%`;
           });
           blob = result.blob;
           mutedVideo ||= result.muted;
           extension = "mp4";
         } else {
-          button.querySelector("span").textContent = `Rendering ${i+1} of ${state.slides}…`;
+          button.querySelector("span").textContent = currentLanguage === "hu" ? `${i+1}/${state.slides}. dia renderelése…` : `Rendering ${i+1} of ${state.slides}…`;
           const canvas = await renderSlide(i);
           blob = await new Promise((resolve) => canvas.toBlob(resolve, `image/${format}`, quality));
           extension = format === "jpeg" ? "jpg" : "png";
@@ -1863,14 +1981,14 @@
         else downloadBlob(blob, filename);
       }
       if (zip) {
-        button.querySelector("span").textContent = "Packing ZIP…";
+        button.querySelector("span").textContent = t("Packing ZIP…");
         downloadBlob(await zip.generateAsync({type:"blob", compression:"STORE"}), `${safeTitle}.zip`);
       }
       $("#exportDialog").close();
-      showToast(mutedVideo ? "Export complete · video audio was not supported by this browser" : "Carousel exported in Instagram posting order");
+      showToast(mutedVideo ? t("Export complete · video audio was not supported by this browser") : t("Carousel exported in Instagram posting order"));
     } catch (error) {
       console.error(error);
-      showToast(error.message || "Video export failed");
+      showToast(error.message || t("Video export failed"));
     } finally {
       button.innerHTML = original;
       button.disabled = false;
@@ -1893,6 +2011,7 @@
   }
 
   function bindEvents() {
+    $$(".language-select").forEach((select) => select.addEventListener("change", (event) => setLanguage(event.target.value)));
     $("#importProjectButton").addEventListener("click", () => $("#projectImportInput").click());
     $("#projectImportInput").addEventListener("change", (event) => importProjectBackup(event.target.files[0]));
     $$(".rail-button").forEach((button) => button.addEventListener("click", () => {
@@ -1928,7 +2047,7 @@
       if (button.dataset.ratio === state.ratio) return;
       pushHistory(); state.ratio = button.dataset.ratio; updateArtboardGeometry(); renderLayers(); scheduleSave(); setTimeout(fitCanvas, 40);
     }));
-    $("#addSlide").addEventListener("click", () => { if(state.slides>=20) return showToast("Maximum 20 slides"); pushHistory(); state.slides++; updateArtboardGeometry(); renderLayers(); scheduleSave(); fitCanvas(); });
+    $("#addSlide").addEventListener("click", () => { if(state.slides>=20) return showToast(t("Maximum 20 slides")); pushHistory(); state.slides++; updateArtboardGeometry(); renderLayers(); scheduleSave(); fitCanvas(); });
     $("#removeSlide").addEventListener("click", () => { if(state.slides<=1) return; pushHistory(); state.slides--; state.slideBackgrounds.length=state.slides; updateArtboardGeometry(); renderLayers(); scheduleSave(); fitCanvas(); });
     $("#zoomRange").addEventListener("input", (event) => { state.zoom=Number(event.target.value); updateZoom(); });
     $("#zoomIn").addEventListener("click", () => { state.zoom=Math.min(100,state.zoom+5); updateZoom(); });
@@ -1947,7 +2066,7 @@
       state.selectedId = layer.id;
       state.cropModeId = state.cropModeId === layer.id ? null : layer.id;
       renderLayers();
-      showToast(state.cropModeId ? "Drag the media to reposition it" : "Media position saved");
+      showToast(state.cropModeId ? t("Drag the media to reposition it") : t("Media position saved"));
     });
     const isPhotoDrag = (event) => {
       const types = [...event.dataTransfer.types];
@@ -2008,7 +2127,7 @@
         }
       }
       addMediaLayer(item, placement);
-      showToast(`${mediaKind(item) === "video" ? "Video" : "Photo"} added where you dropped it`);
+      showToast(currentLanguage === "hu" ? `${mediaKind(item) === "video" ? "Videó" : "Fotó"} hozzáadva a leejtés helyén` : `${mediaKind(item) === "video" ? "Video" : "Photo"} added where you dropped it`);
     });
     $("#deleteLayer").addEventListener("click", deleteSelected);
     $("#closeProperties").addEventListener("click", () => { state.selectedId=null; state.cropModeId=null; renderLayers(); });
@@ -2033,7 +2152,7 @@
       if (!isVisualLayer(layer) || layer.locked) return;
       state.cropModeId = state.cropModeId === layer.id ? null : layer.id;
       renderLayers();
-      showToast(state.cropModeId ? "Drag the media inside its frame" : "Media position saved");
+      showToast(state.cropModeId ? t("Drag the media inside its frame") : t("Media position saved"));
     });
     $$('[data-fit]').forEach((button) => button.addEventListener("click", () => mutateSelected((layer) => layer.fit=button.dataset.fit, true)));
     $("#textContent").addEventListener("input", (event) => mutateSelected((layer) => layer.text=event.target.value));
@@ -2092,6 +2211,7 @@
   }
 
   async function init() {
+    await setLanguage(currentLanguage, { rerender:false });
     try { await loadSaved(); } catch (error) { console.error("Local database could not be opened", error); }
     bindEvents();
     syncAll();

@@ -33,6 +33,10 @@ body { margin: 0; overflow: hidden; background: var(--bg); color: var(--text); f
 button, input, select, textarea { font: inherit; }
 button { color: inherit; }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.language-control { display:flex; align-items:center; }
+.language-select { height:32px; min-width:54px; padding:0 22px 0 10px; border:1px solid var(--line); border-radius:9px; background:#1a1a1d; color:var(--text); font-size:10px; font-weight:750; letter-spacing:.08em; cursor:pointer; }
+.language-select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
 .app-shell { height: 100%; display: grid; grid-template-rows: 68px 1fr; }
 .home-screen { position:fixed; inset:0; z-index:150; overflow:auto; background:radial-gradient(circle at 78% 8%,rgba(217,255,99,.09),transparent 27%),radial-gradient(circle at 12% 85%,rgba(165,139,255,.08),transparent 29%),#0e0e10; }
@@ -335,6 +339,10 @@ h2 { font-size: 21px; margin: 3px 0 0; line-height: 1.1; }
 .resize-handle { position:absolute; width:28px; height:28px; right:-15px; bottom:-15px; cursor:nwse-resize; z-index:5; }
 .frame-draft { position:absolute; z-index:999; border:2px solid var(--accent); background:rgba(217,255,99,.14); box-shadow:inset 0 0 0 1px rgba(14,14,16,.35); pointer-events:none; }
 .frame-draft::after { content:"Photo frame"; position:absolute; left:8px; top:8px; padding:4px 6px; border-radius:5px; background:rgba(14,14,16,.84); color:var(--accent); font-size:9px; font-weight:700; white-space:nowrap; }
+html[lang="hu"] .media-thumb.video-media::before { content:"VIDEÓ"; }
+html[lang="hu"] .canvas-layer:is(.image-layer,.video-layer).drop-slot::before { content:"Húzd ide a médiát"; }
+html[lang="hu"] .canvas-layer.crop-mode::before { content:"Húzd a médiát az áthelyezéshez · dupla kattintással kész"; }
+html[lang="hu"] .frame-draft::after { content:"Fotókeret"; }
 .snap-guide { position:absolute; z-index:1200; display:block; pointer-events:none; background:var(--accent); box-shadow:0 0 0 1px rgba(14,14,16,.45); }
 .snap-guide.vertical { top:0; bottom:0; width:1px; }
 .snap-guide.horizontal { left:0; right:0; height:1px; }
@@ -454,6 +462,7 @@ dialog::backdrop { background:rgba(4,4,5,.72); backdrop-filter:blur(8px); }
   .home-topline { display:none; }
   .home-new-button { height:36px; padding:0 12px; }
   .home-actions { gap:5px; }
+  .home-actions .language-select { width:48px; min-width:48px; height:36px; padding-left:8px; }
   .home-actions .secondary { height:36px; padding:0 9px; font-size:10px; }
   .home-content { width:calc(100% - 28px); padding:28px 0 50px; }
   .home-hero { display:block; padding:12px 0 38px; }
@@ -467,6 +476,7 @@ dialog::backdrop { background:rgba(4,4,5,.72); backdrop-filter:blur(8px); }
   .topbar { height:60px; grid-template-columns:1fr auto; padding:0 12px; }
   .project-title-wrap { display:none; }
   .top-actions .icon-button,.top-actions .secondary { display:none; }
+  .top-actions .language-select { height:34px; }
   .workspace { display:block; position:relative; }
   .left-panel { position:fixed; bottom:0; left:0; right:0; height:66px; border:0; border-top:1px solid var(--line); display:block; z-index:40; }
   .tool-rail { height:66px; flex-direction:row; justify-content:space-around; border:0; padding:5px; }
