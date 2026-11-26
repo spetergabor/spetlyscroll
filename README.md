@@ -14,6 +14,8 @@ A Spetlyscroll egy privát, böngészőalapú stúdió egységes közösségimé
 - One continuous canvas across 1–20 slides
 - 4:5, square, and story aspect ratios
 - Drag and resize photos or videos, then zoom and reposition the media inside its frame
+- Select every movable layer with one click or ⌘A, then drag, duplicate, or delete the entire selection together
+- Shift-click layers on the canvas or in the layer stack to fine-tune a multi-layer selection
 - Full layer stack with drag-to-reorder, hide/show, lock, duplicate, send-back, and bring-front controls
 - Display, body, and label typography
 - Twelve bundled, privacy-friendly font families spanning editorial serif, modern sans, condensed, and handwritten styles

@@ -33,6 +33,7 @@
       "Set one color for slides 1–2, then choose a new start slide and continue with another color.":"Állíts be egy színt az 1–2. diára, majd válassz új kezdődiát, és folytasd másik színnel.",
       "Warm white":"Meleg fehér", "Blush":"Púder", "Sage":"Zsálya", "Sky":"Égkék", "Sun":"Napfény", "Coral":"Korall", "Violet":"Ibolya", "Ink":"Tinta",
       "Canvas ratio":"Vászon képaránya", "Draw a photo frame anywhere on the canvas":"Rajzolj fotókeretet bárhová a vásznon", "Photo frame":"Fotókeret",
+      "Select all movable layers (⌘A)":"Minden mozgatható réteg kijelölése (⌘A)", "Select all":"Minden kijelölése", "select all":"minden kijelölése", "add to selection":"hozzáadás a kijelöléshez", "delete selection":"kijelölés törlése", "clear selection":"kijelölés megszüntetése",
       "Slides":"Diák", "Remove slide":"Dia eltávolítása", "Add slide":"Dia hozzáadása", "Photos":"Fotók", "Number of photos":"Fotók száma", "Zoom out":"Kicsinyítés", "Zoom in":"Nagyítás",
       "Carousel canvas":"Carousel-vászon", "keep proportions":"arányok megtartása", "delete layer":"réteg törlése", "finish drawing":"rajzolás befejezése", "Fit canvas":"Vászon illesztése",
       "Select a layer":"Válassz egy réteget", "Click any photo, video or text on the canvas to fine-tune it here.":"Kattints egy fotóra, videóra vagy szövegre a vásznon, és itt finomhangolhatod.",
@@ -42,6 +43,9 @@
       "Editorial serif":"Editorial talpas", "Modern sans":"Modern talpatlan", "Handwritten":"Kézírásos", "Make it memorable":"Legyen emlékezetes", "Size":"Méret", "Text color":"Szövegszín",
       "Left":"Balra", "Center":"Középre", "Right":"Jobbra", "Send back":"Hátraküldés", "Bring front":"Előrehozás", "Duplicate":"Duplikálás",
       "Canvas stack":"Vászon rétegei", "Layers":"Rétegek", "Delete layer":"Réteg törlése", "Close properties":"Tulajdonságok bezárása",
+      "Multiple selection":"Többes kijelölés", "layers selected":"réteg kijelölve", "Drag any selected layer to move the whole selection together. Shift-click to add or remove layers.":"Húzd bármely kijelölt réteget az egész kijelölés közös mozgatásához. Shift-kattintással adhatsz hozzá vagy távolíthatsz el rétegeket.",
+      "Duplicate selection":"Kijelölés duplikálása", "Delete selection":"Kijelölés törlése", "Clear selection":"Kijelölés megszüntetése", "Move the whole selection":"A teljes kijelölés mozgatása",
+      "All movable layers selected":"Minden mozgatható réteg kijelölve", "No movable layers to select":"Nincs kijelölhető mozgatható réteg", "Unlock selected layers before moving them":"Mozgatás előtt oldd fel a kijelölt rétegeket", "Unlock selected layers before deleting them":"Törlés előtt oldd fel a kijelölt rétegeket", "Unlock selected layers before duplicating them":"Duplikálás előtt oldd fel a kijelölt rétegeket",
       "Drop to add photos or videos":"Húzd ide a fotókat vagy videókat", "Swipe preview":"Lapozási előnézet", "Your carousel":"A carouseled", "Close":"Bezárás",
       "Ready to post":"Készen áll a posztolásra", "Export carousel":"Carousel exportálása", "3 high-quality slides":"3 kiváló minőségű dia",
       "Images are rendered locally and downloaded in posting order.":"A képek helyben készülnek el, és posztolási sorrendben töltődnek le.",
@@ -149,6 +153,7 @@
     layers: [],
     media: [],
     selectedId: null,
+    selectedIds: [],
     history: [],
     future: [],
     previewIndex: 0,
@@ -229,6 +234,7 @@
       layers:(data.layers || []).map((layer) => ({...layer})),
       media:(data.media || []).map((item) => ({...item})),
       selectedId:null,
+      selectedIds:[],
     });
     mediaDirty = true;
     syncAll();
@@ -496,6 +502,9 @@
     artboard.innerHTML = "";
     artboard.style.background = state.background;
     const { w, h } = ratioInfo();
+    const selectedIds = new Set(state.selectedIds || []);
+    if (state.selectedId && !selectedIds.has(state.selectedId)) selectedIds.add(state.selectedId);
+    const isMultiSelection = selectedIds.size > 1;
     state.slideBackgrounds.forEach((color, index) => {
       if (!color) return;
       const background = document.createElement("div");
@@ -513,7 +522,7 @@
 
     [...state.layers].filter((layer) => !layer.hidden).sort((a, b) => a.z - b.z).forEach((layer) => {
       const element = document.createElement("div");
-      element.className = `canvas-layer ${layer.type}-layer${layer.templateSlot ? " template-slot" : ""}${layer.userFrame ? " user-frame" : ""}${layer.id === state.selectedId ? " selected" : ""}${layer.id === state.cropModeId ? " crop-mode" : ""}${layer.locked ? " locked" : ""}`;
+      element.className = `canvas-layer ${layer.type}-layer${layer.templateSlot ? " template-slot" : ""}${layer.userFrame ? " user-frame" : ""}${selectedIds.has(layer.id) ? " selected" : ""}${isMultiSelection && selectedIds.has(layer.id) ? " multi-selected" : ""}${layer.id === state.selectedId ? " primary-selected" : ""}${layer.id === state.cropModeId ? " crop-mode" : ""}${layer.locked ? " locked" : ""}`;
       element.dataset.id = layer.id;
       Object.assign(element.style, {
         left: `${layer.x}px`,
@@ -570,15 +579,101 @@
       artboard.appendChild(element);
     });
 
+    renderSelectionBounds();
+
     syncProperties();
     renderLayerList();
     syncFrameDrawMode();
+    syncSelectAllButton();
   }
 
-  function selectLayer(id) {
-    state.selectedId = id;
+  function selectedLayerIds() {
+    const validIds = new Set(state.layers.map((layer) => layer.id));
+    const ids = [...new Set([...(state.selectedIds || []), state.selectedId].filter((id) => id && validIds.has(id)))];
+    state.selectedIds = ids;
+    if (!ids.includes(state.selectedId)) state.selectedId = ids.at(-1) || null;
+    return ids;
+  }
+
+  function selectedLayers() {
+    const ids = new Set(selectedLayerIds());
+    return state.layers.filter((layer) => ids.has(layer.id));
+  }
+
+  function clearSelection(render = true) {
+    state.selectedId = null;
+    state.selectedIds = [];
+    state.cropModeId = null;
+    if (render) renderLayers();
+  }
+
+  function selectOnly(id, render = true) {
+    state.selectedId = id || null;
+    state.selectedIds = id ? [id] : [];
     if (state.cropModeId && state.cropModeId !== id) state.cropModeId = null;
+    if (render) renderLayers();
+  }
+
+  function selectLayer(id, additive = false) {
+    if (!additive) {
+      const current = selectedLayerIds();
+      if (current.includes(id) && current.length > 1) return renderLayers();
+      return selectOnly(id);
+    }
+    const ids = selectedLayerIds();
+    const exists = ids.includes(id);
+    state.selectedIds = exists ? ids.filter((selectedId) => selectedId !== id) : [...ids, id];
+    state.selectedId = exists ? (state.selectedIds.at(-1) || null) : id;
+    state.cropModeId = null;
     renderLayers();
+  }
+
+  function selectAllLayers() {
+    const movable = state.layers.filter((layer) => !layer.hidden && !layer.locked).map((layer) => layer.id);
+    if (!movable.length) return showToast(t("No movable layers to select"));
+    state.selectedIds = movable;
+    state.selectedId = movable.at(-1);
+    state.cropModeId = null;
+    renderLayers();
+    showToast(t("All movable layers selected"));
+  }
+
+  function selectionBounds(layers = selectedLayers()) {
+    if (!layers.length) return null;
+    const left = Math.min(...layers.map((layer) => layer.x));
+    const top = Math.min(...layers.map((layer) => layer.y));
+    const right = Math.max(...layers.map((layer) => layer.x + layer.w));
+    const bottom = Math.max(...layers.map((layer) => layer.y + layer.h));
+    return { x:left, y:top, w:right-left, h:bottom-top };
+  }
+
+  function renderSelectionBounds() {
+    const layers = selectedLayers().filter((layer) => !layer.hidden);
+    if (layers.length < 2) return;
+    const bounds = selectionBounds(layers);
+    const outline = document.createElement("div");
+    outline.className = "selection-bounds";
+    Object.assign(outline.style, { left:`${bounds.x}px`, top:`${bounds.y}px`, width:`${bounds.w}px`, height:`${bounds.h}px` });
+    outline.innerHTML = `<b>${layers.length} ${currentLanguage === "hu" ? "réteg" : "layers"}</b>`;
+    artboard.appendChild(outline);
+  }
+
+  function updateSelectionBoundsElement() {
+    const outline = $(".selection-bounds", artboard);
+    if (!outline) return;
+    const bounds = selectionBounds(selectedLayers().filter((layer) => !layer.hidden));
+    if (!bounds) return;
+    Object.assign(outline.style, { left:`${bounds.x}px`, top:`${bounds.y}px`, width:`${bounds.w}px`, height:`${bounds.h}px` });
+  }
+
+  function syncSelectAllButton() {
+    const button = $("#selectAllButton");
+    if (!button) return;
+    const movable = state.layers.filter((layer) => !layer.hidden && !layer.locked);
+    const selected = new Set(selectedLayerIds());
+    const allSelected = movable.length > 0 && movable.every((layer) => selected.has(layer.id));
+    button.classList.toggle("active", allSelected);
+    button.setAttribute("aria-pressed", String(allSelected));
   }
 
   function selectedLayer() {
@@ -589,6 +684,7 @@
     const list = $("#layersList");
     $("#layerCount").textContent = state.layers.length;
     list.innerHTML = "";
+    const selectedIds = new Set(selectedLayerIds());
     const ordered = [...state.layers].sort((a, b) => b.z - a.z);
     if (!ordered.length) {
       list.innerHTML = `<div class="layers-empty">${t("Your layers will appear here.")}</div>`;
@@ -596,7 +692,7 @@
     }
     ordered.forEach((layer, index) => {
       const row = document.createElement("div");
-      row.className = `layer-row${layer.id === state.selectedId ? " selected" : ""}`;
+      row.className = `layer-row${selectedIds.has(layer.id) ? " selected" : ""}${layer.id === state.selectedId ? " primary-selected" : ""}`;
       row.dataset.id = layer.id;
       row.draggable = true;
       const visualCount = ordered.filter(isVisualLayer).length;
@@ -609,7 +705,7 @@
         <span class="layer-meta"><b>${escapeHtml(label)}</b><small>${layer.type === "video" ? t("Video") : layer.type === "image" ? t("Photo") : t("Text")}${layer.locked ? ` · ${t("Locked")}` : ""}</small></span>
         <button class="layer-toggle visibility-toggle${layer.hidden ? "" : " active"}" aria-label="${layer.hidden ? t("Show") : t("Hide")}"><svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></button>
         <button class="layer-toggle lock-toggle${layer.locked ? " active" : ""}" aria-label="${layer.locked ? t("Unlock") : t("Lock")}"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></button>`;
-      row.addEventListener("click", () => selectLayer(layer.id));
+      row.addEventListener("click", (event) => selectLayer(layer.id, event.shiftKey || event.metaKey || event.ctrlKey));
       $(".visibility-toggle", row).addEventListener("click", (event) => {
         event.stopPropagation();
         pushHistory();
@@ -830,7 +926,7 @@
         projectId:data.projectId || projectId,
         updatedAt:data.updatedAt || Date.now(),
         slideBackgrounds:Array.isArray(data.slideBackgrounds) ? data.slideBackgrounds : [],
-        selectedId:null, history:[], future:[], previewIndex:0, cropModeId:null, frameDrawMode:false,
+        selectedId:null, selectedIds:[], history:[], future:[], previewIndex:0, cropModeId:null, frameDrawMode:false,
         backgroundStart:data.backgroundStart || 0, backgroundSpan:data.backgroundSpan || "all",
       });
       mediaDirty = !data.mediaStorageVersion;
@@ -848,7 +944,7 @@
     Object.assign(state, {
       projectId:uid(), updatedAt:Date.now(), title:localizedDefaultTitle(), slides:1, ratio:"4:5",
       background:"#f4f1e8", slideBackgrounds:[], backgroundStart:0, backgroundSpan:"all", zoom:55,
-      layers:[], media:[], selectedId:null, history:[], future:[], previewIndex:0,
+      layers:[], media:[], selectedId:null, selectedIds:[], history:[], future:[], previewIndex:0,
       activeTemplate:"blank-single", templatePhotoCount:3, cropModeId:null, frameDrawMode:false,
       templateDefaultsVersion:2,
     });
@@ -883,6 +979,7 @@
     };
     state.layers.push(layer);
     state.selectedId = layer.id;
+    state.selectedIds = [layer.id];
     renderLayers();
     scheduleSave();
   }
@@ -903,6 +1000,7 @@
     const layer = { id: uid(), type: "text", x: Math.max(28, (w * state.slides - preset.w) / 2), y: h * .42, z: nextZ(), color: "#171719", align: "left", opacity: 1, rotation: 0, ...preset };
     state.layers.push(layer);
     state.selectedId = layer.id;
+    state.selectedIds = [layer.id];
     renderLayers();
     scheduleSave();
   }
@@ -912,30 +1010,29 @@
   }
 
   function deleteSelected() {
-    if (!state.selectedId) return;
-    if (selectedLayer()?.locked) { showToast(t("Unlock this layer before deleting it")); return; }
+    const layers = selectedLayers();
+    if (!layers.length) return;
+    if (layers.some((layer) => layer.locked)) { showToast(layers.length > 1 ? t("Unlock selected layers before deleting them") : t("Unlock this layer before deleting it")); return; }
     pushHistory();
-    state.layers = state.layers.filter((layer) => layer.id !== state.selectedId);
-    state.selectedId = null;
-    state.cropModeId = null;
+    const ids = new Set(layers.map((layer) => layer.id));
+    state.layers = state.layers.filter((layer) => !ids.has(layer.id));
+    clearSelection(false);
     renderLayers();
     scheduleSave();
   }
 
   function duplicateSelected() {
-    const layer = selectedLayer();
-    if (!layer) return;
-    if (layer.locked) { showToast(t("Unlock this layer before duplicating it")); return; }
+    const layers = selectedLayers().sort((a, b) => a.z - b.z);
+    if (!layers.length) return;
+    if (layers.some((layer) => layer.locked)) { showToast(layers.length > 1 ? t("Unlock selected layers before duplicating them") : t("Unlock this layer before duplicating it")); return; }
     pushHistory();
-    const duplicate = {...layer};
-    duplicate.id = uid();
-    duplicate.x += 20;
-    duplicate.y += 20;
-    duplicate.z = nextZ();
-    duplicate.locked = false;
-    duplicate.hidden = false;
-    state.layers.push(duplicate);
-    state.selectedId = duplicate.id;
+    let z = nextZ();
+    const duplicates = layers.map((layer) => ({
+      ...layer, id:uid(), x:layer.x + 20, y:layer.y + 20, z:z++, locked:false, hidden:false,
+    }));
+    state.layers.push(...duplicates);
+    state.selectedIds = duplicates.map((layer) => layer.id);
+    state.selectedId = state.selectedIds.at(-1);
     state.cropModeId = null;
     renderLayers();
     scheduleSave();
@@ -943,10 +1040,14 @@
 
   function syncProperties() {
     const layer = selectedLayer();
-    $("#propertiesEmpty").classList.toggle("hidden", !!layer);
-    $("#propertiesPanel").classList.toggle("hidden", !layer);
-    rightPanel.classList.toggle("has-selection", !!layer);
-    if (!layer) return;
+    const selectionCount = selectedLayerIds().length;
+    const multiple = selectionCount > 1;
+    $("#propertiesEmpty").classList.toggle("hidden", selectionCount > 0);
+    $("#propertiesMultiple").classList.toggle("hidden", !multiple);
+    $("#propertiesPanel").classList.toggle("hidden", !layer || multiple);
+    rightPanel.classList.toggle("has-selection", selectionCount > 0);
+    $("#multiSelectionCount").textContent = selectionCount;
+    if (!layer || multiple) return;
     $("#layerType").textContent = layer.type === "video" ? t("Video") : layer.type === "image" ? t("Photo") : t("Text");
     $("#imageProperties").classList.toggle("hidden", !isVisualLayer(layer));
     $("#textProperties").classList.toggle("hidden", layer.type !== "text");
@@ -1094,6 +1195,7 @@
     layer.focusX = 50;
     layer.focusY = 50;
     state.selectedId = layer.id;
+    state.selectedIds = [layer.id];
     state.cropModeId = null;
     renderLayers();
     scheduleSave();
@@ -1233,6 +1335,7 @@
     if (withHistory) pushHistory();
     state.layers = [];
     state.selectedId = null;
+    state.selectedIds = [];
     renderLayers();
   }
 
@@ -1254,6 +1357,7 @@
     state.backgroundStart = 0;
     state.backgroundSpan = "all";
     state.selectedId = null;
+    state.selectedIds = [];
     const photo = (x, y, width, height, colors, options = {}) => ({
       id:uid(), type:"image", src:makePlaceholder(colors, width, height), x, y, w:width, h:height,
       z:options.z ?? 1, opacity:1, radius:0, fit:"cover", rotation:options.rotation ?? 0,
@@ -1488,6 +1592,7 @@
     state.backgroundStart = 0;
     state.backgroundSpan = "all";
     state.selectedId = null;
+    state.selectedIds = [];
 
     const { w, h } = ratioInfo();
     const slotHeight = h / safeCount;
@@ -1626,6 +1731,7 @@
   }
 
   function snapTargets(excludeId) {
+    const excludedIds = new Set(Array.isArray(excludeId) ? excludeId : [excludeId].filter(Boolean));
     const { w, h } = ratioInfo();
     const x = [0, w * state.slides, w * state.slides / 2];
     for (let slide = 0; slide <= state.slides; slide++) {
@@ -1633,7 +1739,7 @@
       if (slide < state.slides) x.push(slide * w + w / 2);
     }
     const y = [0, h / 2, h];
-    state.layers.filter((layer) => layer.id !== excludeId && !layer.hidden).forEach((layer) => {
+    state.layers.filter((layer) => !excludedIds.has(layer.id) && !layer.hidden).forEach((layer) => {
       x.push(layer.x, layer.x + layer.w / 2, layer.x + layer.w);
       y.push(layer.y, layer.y + layer.h / 2, layer.y + layer.h);
     });
@@ -1663,25 +1769,46 @@
     };
   }
 
+  function snapGroupPosition(bounds, x, y, excludedIds) {
+    const targets = snapTargets(excludedIds);
+    const xMatch = closestSnap([
+      {value:x}, {value:x + bounds.w / 2}, {value:x + bounds.w},
+    ], targets.x);
+    const yMatch = closestSnap([
+      {value:y}, {value:y + bounds.h / 2}, {value:y + bounds.h},
+    ], targets.y);
+    return {
+      x:x + (xMatch?.delta || 0), y:y + (yMatch?.delta || 0),
+      vertical:xMatch ? [xMatch.guide] : [], horizontal:yMatch ? [yMatch.guide] : [],
+    };
+  }
+
   function pointerStart(event) {
     if (state.frameDrawMode) { startFrameDraw(event); return; }
     const layerElement = event.target.closest(".canvas-layer");
-    if (!layerElement) { state.selectedId = null; state.cropModeId = null; renderLayers(); return; }
+    if (!layerElement) { clearSelection(); return; }
     event.preventDefault();
     const id = layerElement.dataset.id;
-    if (state.selectedId !== id) selectLayer(id);
+    const additive = !event.target.dataset.resize && (event.shiftKey || event.metaKey || event.ctrlKey);
+    if (additive) { selectLayer(id, true); return; }
+    const currentSelection = selectedLayerIds();
+    if (!currentSelection.includes(id)) selectOnly(id);
     const layer = state.layers.find((item) => item.id === id);
-    if (layer.locked) { showToast(t("Unlock this layer to edit it")); return; }
+    const movingLayers = selectedLayers();
+    if (movingLayers.some((item) => item.locked)) { showToast(movingLayers.length > 1 ? t("Unlock selected layers before moving them") : t("Unlock this layer to edit it")); return; }
     pushHistory();
+    const groupMove = movingLayers.length > 1;
     drag = {
       id,
-      mode: state.cropModeId === id && isVisualLayer(layer) ? "image-pan" : (event.target.dataset.resize ? "resize" : "move"),
+      mode: groupMove ? "group-move" : state.cropModeId === id && isVisualLayer(layer) ? "image-pan" : (event.target.dataset.resize ? "resize" : "move"),
       startX: event.clientX,
       startY: event.clientY,
       x: layer.x, y: layer.y, w: layer.w, h: layer.h,
       aspect: layer.w / layer.h,
       focusX: layer.focusX ?? 50,
       focusY: layer.focusY ?? 50,
+      group:groupMove ? movingLayers.map((item) => ({id:item.id, x:item.x, y:item.y})) : null,
+      bounds:groupMove ? selectionBounds(movingLayers) : null,
       moved: false,
     };
     window.addEventListener("pointermove", pointerMove);
@@ -1706,7 +1833,22 @@
     const dx = (event.clientX - drag.startX) / scale;
     const dy = (event.clientY - drag.startY) / scale;
     drag.moved = Math.abs(dx) + Math.abs(dy) > 1;
-    if (drag.mode === "image-pan") {
+    if (drag.mode === "group-move") {
+      const snapped = snapGroupPosition(drag.bounds, drag.bounds.x + dx, drag.bounds.y + dy, drag.group.map((item) => item.id));
+      const groupDx = snapped.x - drag.bounds.x;
+      const groupDy = snapped.y - drag.bounds.y;
+      drag.group.forEach((origin) => {
+        const groupLayer = state.layers.find((item) => item.id === origin.id);
+        if (!groupLayer) return;
+        groupLayer.x = origin.x + groupDx;
+        groupLayer.y = origin.y + groupDy;
+        const groupElement = $(`.canvas-layer[data-id="${groupLayer.id}"]`);
+        if (groupElement) Object.assign(groupElement.style, { left:`${groupLayer.x}px`, top:`${groupLayer.y}px` });
+      });
+      updateSelectionBoundsElement();
+      showSnapGuides(snapped.vertical, snapped.horizontal);
+      return;
+    } else if (drag.mode === "image-pan") {
       layer.focusX = Math.max(0, Math.min(100, drag.focusX - dx / layer.w * 100));
       layer.focusY = Math.max(0, Math.min(100, drag.focusY - dy / layer.h * 100));
       const image = $(`.canvas-layer[data-id="${layer.id}"] img`);
@@ -1756,6 +1898,7 @@
       };
       state.layers.push(layer);
       state.selectedId = layer.id;
+      state.selectedIds = [layer.id];
       drag = null;
       window.removeEventListener("pointermove", pointerMove);
       renderLayers();
@@ -2054,6 +2197,7 @@
     $("#zoomOut").addEventListener("click", () => { state.zoom=Math.max(10,state.zoom-5); updateZoom(); });
     $("#fitButton").addEventListener("click", fitCanvas);
     $("#drawFrameButton").addEventListener("click", () => setFrameDrawMode(!state.frameDrawMode));
+    $("#selectAllButton").addEventListener("click", selectAllLayers);
     $("#projectTitle").addEventListener("input", (event) => { state.title=event.target.value; scheduleSave(); });
     $("#undoButton").addEventListener("click", undo);
     $("#redoButton").addEventListener("click", redo);
@@ -2064,6 +2208,7 @@
       const layer = state.layers.find((item) => item.id === element.dataset.id);
       if (!layer || layer.locked) return;
       state.selectedId = layer.id;
+      state.selectedIds = [layer.id];
       state.cropModeId = state.cropModeId === layer.id ? null : layer.id;
       renderLayers();
       showToast(state.cropModeId ? t("Drag the media to reposition it") : t("Media position saved"));
@@ -2130,7 +2275,10 @@
       showToast(currentLanguage === "hu" ? `${mediaKind(item) === "video" ? "Videó" : "Fotó"} hozzáadva a leejtés helyén` : `${mediaKind(item) === "video" ? "Video" : "Photo"} added where you dropped it`);
     });
     $("#deleteLayer").addEventListener("click", deleteSelected);
-    $("#closeProperties").addEventListener("click", () => { state.selectedId=null; state.cropModeId=null; renderLayers(); });
+    $("#deleteSelection").addEventListener("click", deleteSelected);
+    $("#duplicateSelection").addEventListener("click", duplicateSelected);
+    $("#clearSelection").addEventListener("click", () => clearSelection());
+    $("#closeProperties").addEventListener("click", () => clearSelection());
     const geometryBindings = {
       geometryX:["x", -100000], geometryY:["y", -100000], geometryW:["w", 1], geometryH:["h", 1], geometryRotation:["rotation", -3600],
     };
@@ -2177,10 +2325,11 @@
 
     document.addEventListener("keydown", (event) => {
       if (["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName)) return;
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a" && $("#homeScreen").classList.contains("hidden") && !$("dialog[open]")) { event.preventDefault(); selectAllLayers(); return; }
       if (event.key === "Backspace" || event.key === "Delete") { event.preventDefault(); deleteSelected(); }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
       if (event.key === "Escape" && state.frameDrawMode) { setFrameDrawMode(false); return; }
-      if (event.key === "Escape") { state.selectedId=null; state.cropModeId=null; renderLayers(); $(".left-panel").classList.remove("open"); }
+      if (event.key === "Escape") { clearSelection(); $(".left-panel").classList.remove("open"); }
     });
 
     let dragDepth = 0;
